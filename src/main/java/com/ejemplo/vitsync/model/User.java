@@ -100,4 +100,3 @@ public class User implements UserDetails {
         fechaActualizacion = LocalDateTime.now();
     }
 }
-
