@@ -24,8 +24,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
-// ❌ Eliminado @RequiredArgsConstructor
-// ❌ Eliminado @Lazy y las inyecciones de campo
+
 public class SecurityConfig {
 
     /**

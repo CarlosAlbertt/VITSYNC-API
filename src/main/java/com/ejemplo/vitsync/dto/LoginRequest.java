@@ -2,7 +2,6 @@ package com.ejemplo.vitsync.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-
 @Data
 public class LoginRequest {
 
