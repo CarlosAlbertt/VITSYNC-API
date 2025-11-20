@@ -25,8 +25,6 @@ public class AuthService implements UserDetailsService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-
-
     /**
      * LOGIN - Autentica al usuario y genera un token JWT
      */
