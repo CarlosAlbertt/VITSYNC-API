@@ -1,102 +1,63 @@
 package com.ejemplo.vitsync.model;
 
+import com.ejemplo.vitsync.enums.Gender;
+import com.ejemplo.vitsync.enums.Role;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
 
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
+@Data //GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
+@AllArgsConstructor //GENERA CONSTRUCTOR CON TODOS LOS ATRIBUTOS
+@NoArgsConstructor //GENERA CONSTRUCTOR VACIO
+@Table(name = "Users") //NOMBRE DE LA TABLA EN LA BASE DE DATOS
+@Entity //INDICA QUE ES UNA ENTIDAD DE JPA
+public class User{
 
-@Entity
-@Table(name = "users")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class User implements UserDetails {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id //INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA BASE DE DATOS
+    @GeneratedValue(strategy = GenerationType.IDENTITY) //INDICA QUE EL VALOR SE GENERA AUTOMÁTICAMENTE
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @NotBlank //INDICA QUE NO PUEDE SER NULO NI VACIO
+    private String name;
+
+    @NotBlank
+    private String secondName;
+
+    @NotBlank
+    private String lastName;
+
+    @NotBlank
     private String username;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @NotBlank
+    @Column(unique = true)
     private String email;
 
+    @NotBlank
+    private String password;
+
+    @Enumerated(EnumType.STRING) //INDICA QUE ES UN ENUMERADO Y SE ALMACENA COMO CADENA DE TEXTO
     @Column(nullable = false)
-    private String password; // Se guardará encriptada
-
-    @Column(nullable = false, length = 100)
-    private String nombre;
-
-    @Column(length = 100)
-    private String apellidos;
+    private Gender gender;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role = Role.PACIENTE; // Por defecto PACIENTE
+    private Role role;
 
-    @Column(nullable = false)
-    private Boolean activo = true;
+    @NotBlank
+    private String  birthDate;
 
-    @Column(name = "fecha_creacion", nullable = false, updatable = false)
-    private LocalDateTime fechaCreacion;
+    @NotBlank
+    private String phone;
 
-    @Column(name = "fecha_actualizacion")
-    private LocalDateTime fechaActualizacion;
+    @NotBlank
+    private String address;
 
-    // Métodos de UserDetails (requeridos por Spring Security)
+    @NotBlank
+    private String postCode;
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Retorna los roles/permisos del usuario
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
-    }
 
-    @Override
-    public String getPassword() {
-        return password;
-    }
-
-    @Override
-    public String getUsername() {
-        return username;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true; // Puedes implementar lógica de expiración
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return activo; // Si está activo, no está bloqueado
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true; // Puedes implementar lógica de expiración de contraseña
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return activo;
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        fechaCreacion = LocalDateTime.now();
-        fechaActualizacion = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        fechaActualizacion = LocalDateTime.now();
-    }
+    @NotBlank
+    private String country;
 }
