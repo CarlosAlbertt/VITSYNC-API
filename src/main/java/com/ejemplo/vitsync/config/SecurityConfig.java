@@ -61,6 +61,7 @@ public class SecurityConfig {
         // Orígenes permitidos
         configuration.setAllowedOrigins(Arrays.asList(
                 "https://vitsync-web-app.vercel.app",
+                "https://vitsync-api-production.up.railway.app",
                 "http://localhost:5173",
                 "http://localhost:4200",
                 "http://localhost:3000"));
