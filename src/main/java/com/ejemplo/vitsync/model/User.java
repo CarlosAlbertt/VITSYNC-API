@@ -23,13 +23,13 @@ public class User {
     private String name;
 
     @NotBlank
+    private String firstName;
+
+    @NotBlank
     private String secondName;
 
     @NotBlank
-    private String lastName;
-
-    @NotBlank
-    private String username;
+    private String nif;
 
     @NotBlank
     @Column(unique = true)

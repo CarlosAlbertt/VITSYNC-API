@@ -28,9 +28,9 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
-            logger.info("Intento de login para usuario: {}", request.getUsername());
+            logger.info("Intento de login para usuario: {}", request.getNif());
             AuthResponse response = authService.login(request);
-            logger.info("Login exitoso para usuario: {}", request.getUsername());
+            logger.info("Login exitoso para usuario: {}", request.getNif());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             logger.error("Error en login: {}", e.getMessage());
@@ -46,9 +46,9 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            logger.info("Intento de registro para usuario: {}", request.getUsername());
+            logger.info("Intento de registro para NIF: {}", request.getNif());
             AuthResponse response = authService.register(request);
-            logger.info("Registro exitoso para usuario: {}", request.getUsername());
+            logger.info("Registro exitoso para NIF: {}", request.getNif());
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
             logger.error("Error en registro: {}", e.getMessage());

@@ -27,7 +27,7 @@ public class AuthService {
     // Login de usuario
     public AuthResponse login(LoginRequest request) {
         // Buscar usuario por username
-        User user = userRepository.findByUsername(request.getUsername())
+        User user = userRepository.findByNif(request.getNif())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         // Verificar contraseña
@@ -36,11 +36,11 @@ public class AuthService {
         }
 
         // Generar token JWT
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+        String token = jwtUtil.generateToken(user.getNif(), user.getRole().name());
 
         return AuthResponse.builder()
                 .token(token)
-                .username(user.getUsername())
+                .nif(user.getNif())
                 .email(user.getEmail())
                 .role(user.getRole())
                 .message("Login exitoso")
@@ -50,7 +50,7 @@ public class AuthService {
     // Registro de nuevo usuario
     public AuthResponse register(RegisterRequest request) {
         // Verificar si el username ya existe
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByNif(request.getNif())) {
             throw new RuntimeException("El nombre de usuario ya está en uso");
         }
 
@@ -62,9 +62,9 @@ public class AuthService {
         // Crear nuevo usuario
         User user = new User();
         user.setName(request.getName());
+        user.setFirstName(request.getFirstName());
         user.setSecondName(request.getSecondName());
-        user.setLastName(request.getLastName());
-        user.setUsername(request.getUsername());
+        user.setNif(request.getNif());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword())); // Encriptar contraseña
         user.setGender(request.getGender());
@@ -79,11 +79,11 @@ public class AuthService {
         userRepository.save(user);
 
         // Generar token JWT
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+        String token = jwtUtil.generateToken(user.getNif(), user.getRole().name());
 
         return AuthResponse.builder()
                 .token(token)
-                .username(user.getUsername())
+                .nif(user.getNif())
                 .email(user.getEmail())
                 .role(user.getRole())
                 .message("Usuario registrado exitosamente")
