@@ -47,8 +47,8 @@ public class EspecialidadResponse {
                     .filter(u -> u.getRole().name().equals("PROFESIONAL"))
                     .map(u -> MedicoSimple.builder()
                             .id(u.getId())
-                            .nombre(u.getName() + " " + u.getLastName())
-                            .username(u.getUsername())
+                            .nombre(u.getName() + " " + u.getFirstName() + " " + u.getSecondName())
+                            .username(u.getNif())
                             .email(u.getEmail())
                             .build())
                     .collect(Collectors.toList());
