@@ -40,6 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Rutas públicas (sin autenticación)
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/especialidades/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         // Todas las demás rutas requieren autenticación
                         .anyRequest().authenticated())
