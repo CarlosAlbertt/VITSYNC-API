@@ -18,9 +18,9 @@ public class EspecialidadService {
         this.especialidadRepository = especialidadRepository;
     }
 
-    // Obtener todas las especialidades activas
+    // Obtener todas las especialidades activas con sus médicos
     public List<Especialidad> findAllActive() {
-        return especialidadRepository.findByActivoTrueOrderByNombreAsc();
+        return especialidadRepository.findAllActiveWithMedicos();
     }
 
     // Obtener todas las especialidades
@@ -28,14 +28,14 @@ public class EspecialidadService {
         return especialidadRepository.findAll();
     }
 
-    // Buscar por ID
+    // Buscar por ID (con médicos)
     public Optional<Especialidad> findById(Long id) {
-        return especialidadRepository.findById(id);
+        return especialidadRepository.findByIdWithMedicos(id);
     }
 
-    // Buscar por slug
+    // Buscar por slug (con médicos)
     public Optional<Especialidad> findBySlug(String slug) {
-        return especialidadRepository.findBySlug(slug);
+        return especialidadRepository.findBySlugWithMedicos(slug);
     }
 
     // Buscar por código
