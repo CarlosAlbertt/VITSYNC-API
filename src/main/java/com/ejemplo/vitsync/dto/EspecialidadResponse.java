@@ -1,7 +1,7 @@
 package com.ejemplo.vitsync.dto;
 
 import com.ejemplo.vitsync.model.Especialidad;
-import com.ejemplo.vitsync.model.User;
+import com.ejemplo.vitsync.model.Medico;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,9 +33,9 @@ public class EspecialidadResponse {
     @NoArgsConstructor
     public static class MedicoSimple {
         private Long id;
-        private String nombre; // name + lastName
-        private String username;
-        private String email;
+        private String nombre; // nombre + apellidos
+        private String numeroColegiado;
+        private String bio;
     }
 
     // Método factory para convertir entidad a DTO
@@ -44,12 +44,12 @@ public class EspecialidadResponse {
 
         if (especialidad.getMedicos() != null && !especialidad.getMedicos().isEmpty()) {
             medicosList = especialidad.getMedicos().stream()
-                    .filter(u -> u.getRole().name().equals("PROFESIONAL"))
-                    .map(u -> MedicoSimple.builder()
-                            .id(u.getId())
-                            .nombre(u.getName() + " " + u.getFirstName() + " " + u.getSecondName())
-                            .username(u.getNif())
-                            .email(u.getEmail())
+                    .filter(m -> m.getActivo())
+                    .map(m -> MedicoSimple.builder()
+                            .id(m.getId())
+                            .nombre(m.getNombre() + " " + m.getApellidos())
+                            .numeroColegiado(m.getNumeroColegiado())
+                            .bio(m.getBio())
                             .build())
                     .collect(Collectors.toList());
         }

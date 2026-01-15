@@ -4,15 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "especialidades")
+@Table(name = "medicos")
 @Entity
-public class Especialidad {
+public class Medico {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,19 +19,17 @@ public class Especialidad {
     @Column(nullable = false)
     private String nombre;
 
-    @Column(nullable = false, unique = true)
-    private String codigo;
+    @Column(nullable = false)
+    private String apellidos;
+
+    @Column(name = "numero_colegiado", unique = true)
+    private String numeroColegiado;
+
+    @Column(name = "foto_url")
+    private String fotoUrl;
 
     @Column(columnDefinition = "TEXT")
-    private String descripcion;
-
-    @Column(nullable = false)
-    private String tipo; // MEDICA, QUIRURGICA, DIAGNOSTICO, GENERAL, UNIDAD
-
-    @Column(unique = true)
-    private String slug;
-
-    private String icono;
+    private String bio;
 
     @Column(nullable = false)
     private Boolean activo = true;
@@ -44,10 +40,11 @@ public class Especialidad {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Relación: Una especialidad puede tener muchos médicos
-    @OneToMany(mappedBy = "especialidad", fetch = FetchType.LAZY)
-    @ToString.Exclude // Evitar recursión infinita en toString
-    private List<Medico> medicos = new ArrayList<>();
+    // Relación: Un médico pertenece a una especialidad
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "especialidad_id")
+    @ToString.Exclude
+    private Especialidad especialidad;
 
     @PrePersist
     protected void onCreate() {
