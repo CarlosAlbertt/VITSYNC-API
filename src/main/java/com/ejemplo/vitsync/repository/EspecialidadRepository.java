@@ -36,8 +36,4 @@ public interface EspecialidadRepository extends JpaRepository<Especialidad, Long
 
     // Buscar por tipo
     List<Especialidad> findByTipoAndActivoTrue(String tipo);
-
-    // Buscar especialidades que tengan médicos asignados
-    @Query("SELECT DISTINCT e FROM Especialidad e LEFT JOIN FETCH e.medicos m WHERE e.activo = true AND m.role = 'PROFESIONAL'")
-    List<Especialidad> findEspecialidadesConMedicos();
 }
