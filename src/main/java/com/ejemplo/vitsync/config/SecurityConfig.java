@@ -55,17 +55,15 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}")
+    private String corsAllowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Orígenes permitidos
-        configuration.setAllowedOrigins(Arrays.asList(
-                "https://vitsync-web-app.vercel.app",
-                "https://vitsync-api-production.up.railway.app",
-                "http://localhost:5173",
-                "http://localhost:4200",
-                "http://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList(corsAllowedOrigins.split(",")));
 
         // Métodos HTTP permitidos
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
