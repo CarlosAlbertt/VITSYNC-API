@@ -3,11 +3,13 @@ package com.ejemplo.vitsync.controller;
 import com.ejemplo.vitsync.dto.AuthResponse;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
+import com.ejemplo.vitsync.dto.VerifyRequest;
 import com.ejemplo.vitsync.service.AuthService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -70,6 +72,21 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"valid\": false}");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"valid\": false}");
+        }
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<?> verify(@RequestBody VerifyRequest request){
+        try{
+            authService.verifyAccount(request.getEmail(), request.getCode());
+            return ResponseEntity.ok(AuthResponse.builder()
+                    .message("Cuenta verificada exitosamente")
+                    .build());
+        }catch (RuntimeException e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AuthResponse.builder()
+                            .message(e.getMessage())
+                            .build());
         }
     }
 }

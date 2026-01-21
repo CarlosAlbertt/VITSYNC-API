@@ -15,7 +15,7 @@ import lombok.*;
 public class User {
 
     @Id // INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA
-        // BASE DE DATOS
+    // BASE DE DATOS
     @GeneratedValue(strategy = GenerationType.IDENTITY) // INDICA QUE EL VALOR SE GENERA AUTOMÁTICAMENTE
     private Long id;
 
@@ -29,6 +29,7 @@ public class User {
     private String secondName;
 
     @NotBlank
+    @Column(unique = true)
     private String nif;
 
     @NotBlank
@@ -65,4 +66,11 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "especialidad_id")
     private Especialidad especialidad;
+
+    // Campos para verificación de correo electrónico
+    @Column(name = "verification_code")
+    private String verificationCode;
+
+    @Column(name = "is_verified", nullable = false)
+    private boolean isVerified = false;
 }
