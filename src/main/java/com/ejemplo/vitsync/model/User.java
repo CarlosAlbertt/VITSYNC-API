@@ -7,28 +7,29 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-@Data //GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
-@AllArgsConstructor //GENERA CONSTRUCTOR CON TODOS LOS ATRIBUTOS
-@NoArgsConstructor //GENERA CONSTRUCTOR VACIO
-@Table(name = "Users") //NOMBRE DE LA TABLA EN LA BASE DE DATOS
-@Entity //INDICA QUE ES UNA ENTIDAD DE JPA
-public class User{
+@Data // GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
+@AllArgsConstructor // GENERA CONSTRUCTOR CON TODOS LOS ATRIBUTOS
+@NoArgsConstructor // GENERA CONSTRUCTOR VACIO
+@Table(name = "Users") // NOMBRE DE LA TABLA EN LA BASE DE DATOS
+@Entity // INDICA QUE ES UNA ENTIDAD DE JPA
+public class User {
 
-    @Id //INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA BASE DE DATOS
-    @GeneratedValue(strategy = GenerationType.IDENTITY) //INDICA QUE EL VALOR SE GENERA AUTOMÁTICAMENTE
+    @Id // INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA
+        // BASE DE DATOS
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // INDICA QUE EL VALOR SE GENERA AUTOMÁTICAMENTE
     private Long id;
 
-    @NotBlank //INDICA QUE NO PUEDE SER NULO NI VACIO
+    @NotBlank // INDICA QUE NO PUEDE SER NULO NI VACIO
     private String name;
+
+    @NotBlank
+    private String firstName;
 
     @NotBlank
     private String secondName;
 
     @NotBlank
-    private String lastName;
-
-    @NotBlank
-    private String username;
+    private String nif;
 
     @NotBlank
     @Column(unique = true)
@@ -37,7 +38,7 @@ public class User{
     @NotBlank
     private String password;
 
-    @Enumerated(EnumType.STRING) //INDICA QUE ES UN ENUMERADO Y SE ALMACENA COMO CADENA DE TEXTO
+    @Enumerated(EnumType.STRING) // INDICA QUE ES UN ENUMERADO Y SE ALMACENA COMO CADENA DE TEXTO
     @Column(nullable = false)
     private Gender gender;
 
@@ -46,7 +47,7 @@ public class User{
     private Role role;
 
     @NotBlank
-    private String  birthDate;
+    private String birthDate;
 
     @NotBlank
     private String phone;
@@ -57,7 +58,11 @@ public class User{
     @NotBlank
     private String postCode;
 
-
     @NotBlank
     private String country;
+
+    // Relación: Un usuario PROFESIONAL pertenece a una especialidad
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "especialidad_id")
+    private Especialidad especialidad;
 }

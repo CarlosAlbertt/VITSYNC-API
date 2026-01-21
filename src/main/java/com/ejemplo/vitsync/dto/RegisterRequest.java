@@ -17,14 +17,14 @@ public class RegisterRequest {
     @NotBlank(message = "El nombre es obligatorio")
     private String name;
 
-    @NotBlank(message = "El segundo nombre es obligatorio")
+    @NotBlank(message = "El primer apellidoid es obligatorio")
+    private String firstName;
+
+    @NotBlank(message = "El segundo apellido es obligatorio")
     private String secondName;
 
-    @NotBlank(message = "El apellido es obligatorio")
-    private String lastName;
-
-    @NotBlank(message = "El nombre de usuario es obligatorio")
-    private String username;
+    @NotBlank(message = "El NIF/CIF es obligatorio")
+    private String nif;
 
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email debe ser válido")

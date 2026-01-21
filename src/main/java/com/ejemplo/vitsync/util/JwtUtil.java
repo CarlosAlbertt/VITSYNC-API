@@ -26,8 +26,8 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     }
 
-    // Extraer el username del token
-    public String extractUsername(String token) {
+    // Extraer el nif del token
+    public String extractNif(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
@@ -75,9 +75,9 @@ public class JwtUtil {
     }
 
     // Validar el token
-    public Boolean validateToken(String token, String username) {
-        final String extractedUsername = extractUsername(token);
-        return (extractedUsername.equals(username) && !isTokenExpired(token));
+    public Boolean validateToken(String token, String nif) {
+        final String extractedNif = extractNif(token);
+        return (extractedNif.equals(nif) && !isTokenExpired(token));
     }
 
     // Extraer el rol del token
