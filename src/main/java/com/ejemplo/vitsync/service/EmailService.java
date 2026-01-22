@@ -33,6 +33,8 @@ public class EmailService {
             helper.setTo(destinatary);
             helper.setSubject(subject);
             helper.setText(htmlContent, true); //True indica que es HTML
+
+            mailSender.send(message);
         }catch (MessagingException e){
             //Manejo de errores básico
             System.err.println("Error al enviar el correo electrónico: " + e.getMessage());
