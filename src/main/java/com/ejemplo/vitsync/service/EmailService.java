@@ -1,43 +1,50 @@
 package com.ejemplo.vitsync.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    // Inyectamos el JavaMailSender para enviar correos electrónicos
-    private final JavaMailSender mailSender;
+    @Value("${resend.api.key}")
+    private String resendApiKey;
 
     @Value("${vitsync.email.from}")
     private String fromEmail;
 
-    // Constructor con inyección de dependencias
-    @Autowired
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    private final RestTemplate restTemplate;
+
+    public EmailService() {
+        this.restTemplate = new RestTemplate();
     }
 
     private void sendHtmlEmail(String destinatary, String subject, String htmlContent) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            // true indica que es multipart (necesario para HTML)
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromEmail);
-            helper.setTo(destinatary);
-            helper.setSubject(subject);
-            helper.setText(htmlContent, true); // True indica que es HTML
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + resendApiKey);
 
-            mailSender.send(message);
-        } catch (MessagingException e) {
-            // Manejo de errores básico
+            Map<String, Object> body = new HashMap<>();
+            body.put("from", fromEmail);
+            body.put("to", List.of(destinatary));
+            body.put("subject", subject);
+            body.put("html", htmlContent);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            restTemplate.postForObject("https://api.resend.com/emails", request, String.class);
+
+            System.out.println("Email enviado exitosamente a: " + destinatary);
+        } catch (Exception e) {
             System.err.println("Error al enviar el correo electrónico: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
