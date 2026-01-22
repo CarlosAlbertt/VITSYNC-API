@@ -12,31 +12,31 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 @Service
 public class EmailService {
 
-    //Inyectamos el JavaMailSender para enviar correos electrónicos
+    // Inyectamos el JavaMailSender para enviar correos electrónicos
     private final JavaMailSender mailSender;
 
     @Value("${vitsync.email.from}")
     private String fromEmail;
 
-    //Constructor con inyección de dependencias
+    // Constructor con inyección de dependencias
     @Autowired
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
-    private void sendHtmlEmail(String destinatary, String subject, String htmlContent){
+    private void sendHtmlEmail(String destinatary, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
-            //true indica que es multipart (necesario para HTML)
+            // true indica que es multipart (necesario para HTML)
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(fromEmail);
             helper.setTo(destinatary);
             helper.setSubject(subject);
-            helper.setText(htmlContent, true); //True indica que es HTML
+            helper.setText(htmlContent, true); // True indica que es HTML
 
             mailSender.send(message);
-        }catch (MessagingException e){
-            //Manejo de errores básico
+        } catch (MessagingException e) {
+            // Manejo de errores básico
             System.err.println("Error al enviar el correo electrónico: " + e.getMessage());
         }
     }
@@ -66,10 +66,12 @@ public class EmailService {
                                     &copy; 2026 Vitsync Team.
                                 </div>
                             </div>
-                """.formatted(code);
+                """
+                .formatted(code);
         sendHtmlEmail(destinatary, subject, htmlContent);
     }
-    public void sendWelcomeEmail(String destinatary){
+
+    public void sendWelcomeEmail(String destinatary) {
         String subject = "¡Bienvenido a VitSync!";
 
         String htmlContent = """
