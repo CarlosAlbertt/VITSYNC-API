@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = { "https://vitsync-web-app.vercel.app", "http://localhost:5173", "http://localhost:4200" })
+
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -76,13 +76,13 @@ public class AuthController {
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<?> verify(@RequestBody VerifyRequest request){
-        try{
+    public ResponseEntity<?> verify(@RequestBody VerifyRequest request) {
+        try {
             authService.verifyAccount(request.getEmail(), request.getCode());
             return ResponseEntity.ok(AuthResponse.builder()
                     .message("Cuenta verificada exitosamente")
                     .build());
-        }catch (RuntimeException e){
+        } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(AuthResponse.builder()
                             .message(e.getMessage())
