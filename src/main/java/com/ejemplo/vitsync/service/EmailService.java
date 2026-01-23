@@ -92,7 +92,7 @@ public class EmailService {
                                         Tu cuenta ha sido verificada con éxito. Ya tienes acceso completo a todos los servicios de Vitsync.
                                     </p>
                                     <div style="text-align: center; margin-top: 30px;">
-                                        <a href="https://vitsync-web-app.vercel.app/login" style="background-color: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Ir a la App</a>
+                                        <a href="https://vitsync.es/login" style="background-color: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Ir a la App</a>
                                     </div>
                                 </div>
                                 <div style="background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #999999;">
