@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/especialidades")
-@CrossOrigin(origins = { "https://vitsync-web-app.vercel.app", "http://localhost:5173", "http://localhost:4200" })
+
 public class EspecialidadController {
 
     private static final Logger logger = LoggerFactory.getLogger(EspecialidadController.class);
