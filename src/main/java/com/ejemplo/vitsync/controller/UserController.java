@@ -10,34 +10,34 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/VitSync-app")
-@CrossOrigin(origins = "https://vitsync-web-app.vercel.app/")
+
 public class UserController {
 
-    private  final IUserService userService;
+    private final IUserService userService;
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
-    public UserController(IUserService userService){
+    public UserController(IUserService userService) {
         this.userService = userService;
     }
 
     @GetMapping
-    public List<User> findAll(){
+    public List<User> findAll() {
         return userService.findAll();
     }
 
     @GetMapping("/{id}")
-    public User findById(@PathVariable Long id){
+    public User findById(@PathVariable Long id) {
         return userService.findById(id);
     }
 
     @PostMapping
-    public void saveUser(@RequestBody User user){
+    public void saveUser(@RequestBody User user) {
         userService.saveUser(user);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable User user){
+    public void deleteUser(@PathVariable User user) {
         userService.deleteUser(user);
     }
 }
