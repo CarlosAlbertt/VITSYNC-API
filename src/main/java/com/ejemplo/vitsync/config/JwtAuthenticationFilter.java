@@ -33,49 +33,65 @@ protected void doFilterInternal(HttpServletRequest request,
                                 FilterChain filterChain)
         throws ServletException, IOException {
 
-            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-                filterChain.doFilter(request, response);
-                return;
+    // 🔥 Permitir preflight CORS
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        filterChain.doFilter(request, response);
+        return;
     }
 
+    // 🔑 Leer header Authorization
+    String authHeader = request.getHeader("Authorization");
 
-        try {
-            // Extraer el token (quitar "Bearer ")
-            final String jwt = authHeader.substring(7);
+    // Si no hay token o no es Bearer, continuar sin autenticar
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        filterChain.doFilter(request, response);
+        return;
+    }
 
-            // Extraer el username del token
-            final String nif = jwtUtil.extractNif(jwt);
+    try {
+        // Extraer el token (quitar "Bearer ")
+        final String jwt = authHeader.substring(7);
 
-            // Si hay username y no hay autenticación previa
-            if (nif != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        // Extraer el nif del token
+        final String nif = jwtUtil.extractNif(jwt);
 
-                // Verificar que el usuario existe
-                userRepository.findByNif(nif).ifPresent(user -> {
+        // Si hay nif y no hay autenticación previa
+        if (nif != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                    // Validar el token
-                    if (jwtUtil.validateToken(jwt, nif)) {
+            // Verificar que el usuario existe
+            userRepository.findByNif(nif).ifPresent(user -> {
 
-                        // Extraer el rol del token
-                        String role = jwtUtil.extractRole(jwt);
+                // Validar el token
+                if (jwtUtil.validateToken(jwt, nif)) {
 
-                        // Crear autenticación
-                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                nif,
-                                null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
+                    // Extraer el rol del token
+                    String role = jwtUtil.extractRole(jwt);
 
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Crear autenticación
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    nif,
+                                    null,
+                                    Collections.singletonList(
+                                            new SimpleGrantedAuthority("ROLE_" + role)
+                                    )
+                            );
 
-                        // Establecer la autenticación en el contexto de seguridad
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                    }
-                });
-            }
-        } catch (Exception e) {
-            // Si hay error con el token, continuar sin autenticar
-            logger.error("Error procesando JWT: " + e.getMessage());
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
+                    // Establecer autenticación
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            });
         }
 
-        filterChain.doFilter(request, response);
+    } catch (Exception e) {
+        logger.error("Error procesando JWT", e);
     }
+
+    filterChain.doFilter(request, response);
+}
+
 }
