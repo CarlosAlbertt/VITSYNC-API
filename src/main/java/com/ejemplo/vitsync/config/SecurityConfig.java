@@ -39,6 +39,7 @@ public class SecurityConfig {
                 // Configurar autorización de peticiones
                 .authorizeHttpRequests(auth -> auth
                         // Rutas públicas (sin autenticación)
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/especialidades/**").permitAll()
                         .requestMatchers("/error").permitAll()
