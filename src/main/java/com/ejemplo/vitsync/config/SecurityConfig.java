@@ -14,6 +14,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -62,10 +63,21 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
+        List<String> allowedOrigins = new ArrayList<>();
+
+        // Añadir orígenes desde configuración
+        if (corsAllowedOrigins != null && !corsAllowedOrigins.isBlank()) {
+            Arrays.stream(corsAllowedOrigins.split(","))
+                    .map(String::trim)
+                    .forEach(allowedOrigins::add);
+        }
+
+        // Añadir orígenes crìticos explícitamente (Fallback para producción)
+        allowedOrigins.add("https://vitsync.es");
+        allowedOrigins.add("https://www.vitsync.es");
+
         // Orígenes permitidos (con trim para evitar errores por espacios)
-        configuration.setAllowedOrigins(Arrays.stream(corsAllowedOrigins.split(","))
-                .map(String::trim)
-                .toList());
+        configuration.setAllowedOrigins(allowedOrigins.stream().distinct().toList());
 
         // Métodos HTTP permitidos
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
