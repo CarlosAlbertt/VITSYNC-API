@@ -61,29 +61,32 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // Orígenes permitidos (con trim para evitar errores por espacios)
-        configuration.setAllowedOrigins(Arrays.stream(corsAllowedOrigins.split(","))
-                .map(String::trim)
-                .toList());
-
-        // Métodos HTTP permitidos
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
-        // Headers permitidos
-        configuration.setAllowedHeaders(List.of("*"));
-
-        // Permitir credenciales (cookies, headers de autorización)
-        configuration.setAllowCredentials(true);
-
-        // Exponer header de autorización
-        configuration.setExposedHeaders(List.of("Authorization"));
-
+        CorsConfiguration config = new CorsConfiguration();
+    
+        config.setAllowedOrigins(List.of(
+                "https://vitsync.es",
+                "https://www.vitsync.es"
+        ));
+    
+        config.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS",
+                "PATCH"
+        ));
+    
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowCredentials(true);
+    
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
+    
         return source;
-    }
+}
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
