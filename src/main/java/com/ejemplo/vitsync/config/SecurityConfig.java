@@ -35,8 +35,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // Configurar CORS
-                .cors(org.springframework.security.config.Customizer.withDefaults())
-
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // Configurar autorización de peticiones
                 .authorizeHttpRequests(auth -> auth
                         // Rutas públicas (sin autenticación)
