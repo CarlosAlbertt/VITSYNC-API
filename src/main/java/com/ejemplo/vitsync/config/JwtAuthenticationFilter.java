@@ -27,57 +27,71 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userRepository = userRepository;
     }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+@Override
+protected void doFilterInternal(HttpServletRequest request,
+                                HttpServletResponse response,
+                                FilterChain filterChain)
+        throws ServletException, IOException {
 
-        // Obtener el header de autorización
-        final String authHeader = request.getHeader("Authorization");
-
-        // Si no hay header o no empieza con "Bearer ", continuar sin autenticar
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        try {
-            // Extraer el token (quitar "Bearer ")
-            final String jwt = authHeader.substring(7);
-
-            // Extraer el username del token
-            final String nif = jwtUtil.extractNif(jwt);
-
-            // Si hay username y no hay autenticación previa
-            if (nif != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                // Verificar que el usuario existe
-                userRepository.findByNif(nif).ifPresent(user -> {
-
-                    // Validar el token
-                    if (jwtUtil.validateToken(jwt, nif)) {
-
-                        // Extraer el rol del token
-                        String role = jwtUtil.extractRole(jwt);
-
-                        // Crear autenticación
-                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                nif,
-                                null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
-
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                        // Establecer la autenticación en el contexto de seguridad
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                    }
-                });
-            }
-        } catch (Exception e) {
-            // Si hay error con el token, continuar sin autenticar
-            logger.error("Error procesando JWT: " + e.getMessage());
-        }
-
+    // 🔥 Permitir preflight CORS
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
         filterChain.doFilter(request, response);
+        return;
     }
+
+    // 🔑 Leer header Authorization
+    String authHeader = request.getHeader("Authorization");
+
+    // Si no hay token o no es Bearer, continuar sin autenticar
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        filterChain.doFilter(request, response);
+        return;
+    }
+
+    try {
+        // Extraer el token (quitar "Bearer ")
+        final String jwt = authHeader.substring(7);
+
+        // Extraer el nif del token
+        final String nif = jwtUtil.extractNif(jwt);
+
+        // Si hay nif y no hay autenticación previa
+        if (nif != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            // Verificar que el usuario existe
+            userRepository.findByNif(nif).ifPresent(user -> {
+
+                // Validar el token
+                if (jwtUtil.validateToken(jwt, nif)) {
+
+                    // Extraer el rol del token
+                    String role = jwtUtil.extractRole(jwt);
+
+                    // Crear autenticación
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    nif,
+                                    null,
+                                    Collections.singletonList(
+                                            new SimpleGrantedAuthority("ROLE_" + role)
+                                    )
+                            );
+
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
+                    // Establecer autenticación
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            });
+        }
+
+    } catch (Exception e) {
+        logger.error("Error procesando JWT", e);
+    }
+
+    filterChain.doFilter(request, response);
+}
+
 }
