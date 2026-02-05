@@ -1,5 +1,6 @@
 package com.ejemplo.vitsync.service;
 
+import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.UserRepository;
 import org.springframework.stereotype.Service;
