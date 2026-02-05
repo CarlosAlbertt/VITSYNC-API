@@ -2,25 +2,16 @@ package com.ejemplo.vitsync.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "medicos")
 @Entity
-public class Medico {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String nombre;
-
-    @Column(nullable = false)
-    private String apellidos;
+@PrimaryKeyJoinColumn(name = "id")
+public class Medico extends User {
 
     @Column(name = "numero_colegiado", unique = true)
     private String numeroColegiado;
