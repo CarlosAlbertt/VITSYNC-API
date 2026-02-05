@@ -3,6 +3,7 @@ package com.ejemplo.vitsync.service;
 import com.ejemplo.vitsync.dto.AuthResponse;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
+import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.UserRepository;
 import com.ejemplo.vitsync.util.JwtUtil;
@@ -20,7 +21,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    public AuthService(UserRepository userRepository, JwtUtil jwtUtil, PasswordEncoder passwordEncoder, EmailService emailService) {
+    public AuthService(UserRepository userRepository, JwtUtil jwtUtil, PasswordEncoder passwordEncoder,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
@@ -46,6 +48,7 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(token)
+                .id(user.getId())
                 .nif(user.getNif())
                 .email(user.getEmail())
                 .role(user.getRole())
@@ -65,8 +68,17 @@ public class AuthService {
             throw new RuntimeException("El email ya está registrado");
         }
 
-        // Crear nuevo usuario
-        User user = new User();
+        // Crear nuevo usuario basado en el rol
+        User user;
+        if (request.getRole() == com.ejemplo.vitsync.enums.Role.PACIENTE) {
+            user = new com.ejemplo.vitsync.model.Paciente();
+        } else if (request.getRole() == Role.MEDICO) {
+            user = new com.ejemplo.vitsync.model.Medico();
+            // TODO: Si hay campos específicos de médico en el registro, setearlos aquí
+        } else {
+            user = new User(); // Fallback o Admin
+        }
+
         user.setName(request.getName());
         user.setFirstName(request.getFirstName());
         user.setSecondName(request.getSecondName());
@@ -81,7 +93,7 @@ public class AuthService {
         user.setPostCode(request.getPostCode());
         user.setCountry(request.getCountry());
 
-        String randomCode = String.valueOf(new Random().nextInt(899999)+100000);
+        String randomCode = String.valueOf(new Random().nextInt(899999) + 100000);
         user.setVerificationCode(randomCode);
         user.setVerified(false);
         // Guardar usuario
@@ -94,6 +106,7 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(token)
+                .id(user.getId())
                 .nif(user.getNif())
                 .email(user.getEmail())
                 .role(user.getRole())
@@ -101,13 +114,14 @@ public class AuthService {
                 .build();
     }
 
-    public void verifyAccount(String email, String code){
+    public void verifyAccount(String email, String code) {
         userRepository.findByEmail(email);
 
-        if(userRepository.existsByEmail(email)){
-            User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        if (userRepository.existsByEmail(email)) {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-            if(user.getVerificationCode().equals(code)){
+            if (user.getVerificationCode().equals(code)) {
                 user.setVerified(true);
                 user.setVerificationCode(null);
                 userRepository.save(user);
