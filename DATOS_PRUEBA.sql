@@ -13,8 +13,8 @@ INSERT INTO Users (
     birth_date, phone, address, post_code, country, is_verified, verification_code
 ) VALUES (
     'Paciente', 'Prueba', 'Uno', '11111111A', 'paciente@demo.com', 
-    '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVwdFYiNu.k4Ni/kZ.yC.w.e', -- Hash de "demo"
-    'MALE', 'PACIENTE', '1990-01-01', '600111222', 'Calle Falsa 123', '28001', 'Spain', TRUE, NULL
+    '$2a$10$UnA6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.u6.', -- Hash de "demo" (Simulado/Placeholder para entorno de prueba)
+    'HOMBRE', 'PACIENTE', '1990-01-01', '600111222', 'Calle Falsa 123', '28001', 'Spain', TRUE, NULL
 );
 
 -- 2. INSERTAR PACIENTE (En tabla hija pacientes)
@@ -32,7 +32,7 @@ INSERT INTO Users (
 ) VALUES (
     'Medico', 'Prueba', 'Dos', '22222222B', 'medico@demo.com', 
     '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVwdFYiNu.k4Ni/kZ.yC.w.e', 
-    'FEMALE', 'PROFESIONAL', '1985-05-05', '600333444', 'Hospital Central', '28002', 'Spain', TRUE, NULL
+    'MUJER', 'PROFESIONAL', '1985-05-05', '600333444', 'Hospital Central', '28002', 'Spain', TRUE, NULL
 );
 
 -- 4. INSERTAR MÉDICO (En tabla hija medicos)
