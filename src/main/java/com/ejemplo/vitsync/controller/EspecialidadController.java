@@ -62,4 +62,23 @@ public class EspecialidadController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(especialidades);
     }
+
+    // DEBUG: Endpoint temporal para diagnosticar problema con BD
+    @GetMapping("/debug")
+    public ResponseEntity<?> debugEspecialidades() {
+        logger.info("=== DEBUG: Verificando conexión con BD ===");
+        try {
+            var todas = especialidadService.findAll();
+            var activas = especialidadService.findAllActive();
+            logger.info("Total en BD: {}, Activas: {}", todas.size(), activas.size());
+            return ResponseEntity.ok(java.util.Map.of(
+                    "totalEnBD", todas.size(),
+                    "totalActivas", activas.size(),
+                    "primeras5", todas.stream().limit(5).map(e -> java.util.Map.of("id", e.getId(), "nombre",
+                            e.getNombre(), "activo", String.valueOf(e.getActivo()))).collect(Collectors.toList())));
+        } catch (Exception ex) {
+            logger.error("Error en debug: ", ex);
+            return ResponseEntity.ok(java.util.Map.of("error", ex.getMessage()));
+        }
+    }
 }
