@@ -4,5 +4,5 @@ package com.ejemplo.vitsync.enums;
 public enum Role { //ENUMERADOR USADO PARA EL ROL DE USUARIO
     ADMIN,
     PACIENTE,
-    PROFESIONAL
+    MEDICO
 }
