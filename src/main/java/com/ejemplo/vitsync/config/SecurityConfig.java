@@ -43,7 +43,7 @@ public class SecurityConfig {
                         // Rutas públicas (sin autenticación)
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/especialidades/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         // Todas las demás rutas requieren autenticación

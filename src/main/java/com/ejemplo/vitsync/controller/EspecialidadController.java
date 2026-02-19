@@ -69,22 +69,75 @@ public class EspecialidadController {
         return ResponseEntity.ok(especialidades);
     }
 
-    // DEBUG: Endpoint temporal para diagnosticar problema con BD
-    @GetMapping("/debug")
-    public ResponseEntity<?> debugEspecialidades() {
-        logger.info("=== DEBUG: Verificando conexión con BD ===");
+    // ==================== ENDPOINTS ADMIN (requieren role ADMIN)
+    // ====================
+
+    // GET /api/especialidades/admin - Listar todas (incluidas inactivas)
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<EspecialidadResponse>> getAllEspecialidadesAdmin() {
+        logger.info("ADMIN: Obteniendo todas las especialidades (incluidas inactivas)");
+        List<EspecialidadResponse> especialidades = especialidadService.findAll()
+                .stream()
+                .map(EspecialidadResponse::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(especialidades);
+    }
+
+    // POST /api/especialidades - Crear nueva especialidad
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createEspecialidad(@Valid @RequestBody EspecialidadRequest request) {
+        logger.info("ADMIN: Creando nueva especialidad: {}", request.getNombre());
         try {
-            var todas = especialidadService.findAll();
-            var activas = especialidadService.findAllActive();
-            logger.info("Total en BD: {}, Activas: {}", todas.size(), activas.size());
-            return ResponseEntity.ok(java.util.Map.of(
-                    "totalEnBD", todas.size(),
-                    "totalActivas", activas.size(),
-                    "primeras5", todas.stream().limit(5).map(e -> java.util.Map.of("id", e.getId(), "nombre",
-                            e.getNombre(), "activo", String.valueOf(e.getActivo()))).collect(Collectors.toList())));
-        } catch (Exception ex) {
-            logger.error("Error en debug: ", ex);
-            return ResponseEntity.ok(java.util.Map.of("error", ex.getMessage()));
+            var created = especialidadService.create(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(EspecialidadResponse.fromEntity(created));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al crear especialidad: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // PUT /api/especialidades/{id} - Actualizar especialidad
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updateEspecialidad(@PathVariable Long id,
+            @Valid @RequestBody EspecialidadRequest request) {
+        logger.info("ADMIN: Actualizando especialidad ID: {}", id);
+        try {
+            var updated = especialidadService.update(id, request);
+            return ResponseEntity.ok(EspecialidadResponse.fromEntity(updated));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al actualizar especialidad: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // DELETE /api/especialidades/{id} - Eliminar especialidad
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteEspecialidad(@PathVariable Long id) {
+        logger.info("ADMIN: Eliminando especialidad ID: {}", id);
+        try {
+            especialidadService.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al eliminar especialidad: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // PATCH /api/especialidades/{id}/toggle-activo - Activar/desactivar
+    @PatchMapping("/{id}/toggle-activo")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> toggleActivo(@PathVariable Long id) {
+        logger.info("ADMIN: Toggling activo para especialidad ID: {}", id);
+        try {
+            var toggled = especialidadService.toggleActivo(id);
+            return ResponseEntity.ok(EspecialidadResponse.fromEntity(toggled));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al toggle activo: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }
