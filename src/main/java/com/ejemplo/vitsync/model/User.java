@@ -12,6 +12,7 @@ import lombok.*;
 @NoArgsConstructor // GENERA CONSTRUCTOR VACIO
 @Table(name = "Users") // NOMBRE DE LA TABLA EN LA BASE DE DATOS
 @Entity // INDICA QUE ES UNA ENTIDAD DE JPA
+@Inheritance(strategy = InheritanceType.JOINED)
 public class User {
 
     @Id // INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA
@@ -61,11 +62,6 @@ public class User {
 
     @NotBlank
     private String country;
-
-    // Relación: Un usuario PROFESIONAL pertenece a una especialidad
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "especialidad_id")
-    private Especialidad especialidad;
 
     // Campos para verificación de correo electrónico
     @Column(name = "verification_code")

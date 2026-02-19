@@ -36,16 +36,4 @@ public interface EspecialidadRepository extends JpaRepository<Especialidad, Long
 
     // Buscar por tipo
     List<Especialidad> findByTipoAndActivoTrue(String tipo);
-
-    // Verificar existencia por código (para validación de unicidad)
-    boolean existsByCodigo(String codigo);
-
-    // Verificar existencia por slug (para validación de unicidad)
-    boolean existsBySlug(String slug);
-
-    // Verificar existencia por código excluyendo un ID (para update)
-    boolean existsByCodigoAndIdNot(String codigo, Long id);
-
-    // Verificar existencia por slug excluyendo un ID (para update)
-    boolean existsBySlugAndIdNot(String slug, Long id);
 }

@@ -47,7 +47,7 @@ public class EspecialidadResponse {
                     .filter(m -> m.getActivo())
                     .map(m -> MedicoSimple.builder()
                             .id(m.getId())
-                            .nombre(m.getNombre() + " " + m.getApellidos())
+                            .nombre(m.getName() + " " + m.getFirstName() + " " + m.getSecondName())
                             .numeroColegiado(m.getNumeroColegiado())
                             .bio(m.getBio())
                             .build())

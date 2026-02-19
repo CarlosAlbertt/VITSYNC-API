@@ -1,21 +1,19 @@
 package com.ejemplo.vitsync.dto;
 
-import com.ejemplo.vitsync.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthResponse {
-
-    private String token;
-    private String nif;
+@Builder
+public class ChatNotification {
     private Long id;
-    private String email;
-    private Role role;
-    private String message;
+    private Long senderId;
+    private Long recipientId;
+    private String content;
+    private LocalDateTime timestamp;
 }
