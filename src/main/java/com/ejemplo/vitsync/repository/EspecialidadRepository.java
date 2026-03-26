@@ -15,10 +15,13 @@ public interface EspecialidadRepository extends JpaRepository<Especialidad, Long
     // Buscar todas las especialidades activas ordenadas por nombre
     List<Especialidad> findByActivoTrueOrderByNombreAsc();
 
-    // Buscar todas las especialidades activas con médicos (JOIN FETCH para evitar
-    // lazy loading)
+    // Buscar todas las especialidades activas con médicos (JOIN FETCH para evitar lazy loading)
     @Query("SELECT DISTINCT e FROM Especialidad e LEFT JOIN FETCH e.medicos WHERE e.activo = true ORDER BY e.nombre ASC")
     List<Especialidad> findAllActiveWithMedicos();
+
+    // Obtener TODAS las especialidades (activas e inactivas) con médicos – para admin
+    @Query("SELECT DISTINCT e FROM Especialidad e LEFT JOIN FETCH e.medicos ORDER BY e.nombre ASC")
+    List<Especialidad> findAllWithMedicos();
 
     // Buscar por slug
     Optional<Especialidad> findBySlug(String slug);
@@ -37,16 +40,17 @@ public interface EspecialidadRepository extends JpaRepository<Especialidad, Long
     // Buscar por tipo
     List<Especialidad> findByTipoAndActivoTrue(String tipo);
 
-    // Verificación de unicidad (usados por EspecialidadService)
+    // ==================== UNICIDAD ====================
+
+    // Verificar unicidad de código
     boolean existsByCodigo(String codigo);
 
+    // Verificar unicidad de slug
     boolean existsBySlug(String slug);
 
+    // Verificar unicidad de código excluyendo la especialidad actual (para update)
     boolean existsByCodigoAndIdNot(String codigo, Long id);
 
+    // Verificar unicidad de slug excluyendo la especialidad actual (para update)
     boolean existsBySlugAndIdNot(String slug, Long id);
-
-    // Para la vista de admin (incluye inactivas con JOIN FETCH)
-    @Query("SELECT DISTINCT e FROM Especialidad e LEFT JOIN FETCH e.medicos ORDER BY e.nombre ASC")
-    List<Especialidad> findAllWithMedicos();
 }
