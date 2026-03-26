@@ -57,6 +57,10 @@ public class SecurityConfig {
 
                         // ===== ADMIN USUARIOS =====
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                        // ===== USER PROFILE =====
+                        .requestMatchers("/VitSync-app/**").authenticated()
+                        // ===== RELATIONSHIPS (CHAT CONTACTS) =====
+                        .requestMatchers("/api/relationships/**").authenticated()
                         // WebSocket
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll() // Permitir leer ficheros (fotos, docs)

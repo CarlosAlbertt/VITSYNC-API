@@ -1,67 +1,50 @@
 package com.ejemplo.vitsync.service;
 
-import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.model.Medico;
 import com.ejemplo.vitsync.model.Paciente;
 import com.ejemplo.vitsync.model.PacienteMedico;
-import com.ejemplo.vitsync.model.User;
+import com.ejemplo.vitsync.repository.MedicoRepository;
 import com.ejemplo.vitsync.repository.PacienteMedicoRepository;
-import com.ejemplo.vitsync.repository.UserRepository;
+import com.ejemplo.vitsync.repository.PacienteRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class PacienteMedicoService {
 
-    private final UserRepository userRepository;
+    private final PacienteRepository pacienteRepository;
+    private final MedicoRepository medicoRepository;
     private final PacienteMedicoRepository repository;
 
-    public PacienteMedicoService(UserRepository userRepository,
-            PacienteMedicoRepository repository) {
-        this.userRepository = userRepository;
+    public PacienteMedicoService(PacienteRepository pacienteRepository,
+                                 MedicoRepository medicoRepository,
+                                 PacienteMedicoRepository repository) {
+        this.pacienteRepository = pacienteRepository;
+        this.medicoRepository = medicoRepository;
         this.repository = repository;
     }
 
     public void asignarMedicoAPaciente(Long pacienteId, Long medicoId) throws Exception {
-        Optional<User> paciente = userRepository.findById(pacienteId);
-        Optional<User> medico = userRepository.findById(medicoId);
+        Paciente paciente = pacienteRepository.findById(pacienteId)
+                .orElseThrow(() -> new Exception("Paciente no encontrado con id " + pacienteId));
+        Medico medico = medicoRepository.findById(medicoId)
+                .orElseThrow(() -> new Exception("Médico no encontrado con id " + medicoId));
 
-        if (paciente.get().getRole() != Role.PACIENTE)
-            throw new Exception("El usuario con id " + pacienteId + " no es un paciente");
-        if (medico.get().getRole() != Role.MEDICO)
-            throw new Exception("El usuario con id " + medicoId + " no es un médico");
-
-        // Verificar existencia (usando los repositorios específicos o cast si es
-        // JOINED)
-        if (!(paciente.get() instanceof Paciente)) {
-            throw new Exception("El usuario encontrado no es una instancia de Paciente (Error de datos)");
-        }
-        if (!(medico.get() instanceof Medico)) {
-            throw new Exception("El usuario encontrado no es una instancia de Medico (Error de datos)");
-        }
-
-        Paciente objPaciente = (Paciente) paciente.get();
-        Medico objMedico = (Medico) medico.get();
-
-        // Guardar relación
-        if (repository.existsByPacienteAndMedico(objPaciente, objMedico)) {
+        if (repository.existsByPacienteAndMedico(paciente, medico)) {
             throw new Exception("Ya existe la relación");
         }
 
         PacienteMedico relacion = new PacienteMedico();
-        relacion.setPaciente(objPaciente);
-        relacion.setMedico(objMedico);
+        relacion.setPaciente(paciente);
+        relacion.setMedico(medico);
         repository.save(relacion);
     }
 
     public List<Medico> getMedicosDePaciente(Long pacienteId) {
-        Paciente paciente = userRepository.findById(pacienteId)
-                .map(user -> (Paciente) user)
-                .orElseThrow(() -> new RuntimeException("Paciente no encontrado"));
-
+        Paciente paciente = pacienteRepository.findById(pacienteId)
+                .orElseThrow(() -> new RuntimeException("Paciente no encontrado con id " + pacienteId));
         return repository.findByPaciente(paciente).stream()
                 .map(PacienteMedico::getMedico)
                 .distinct()
@@ -69,13 +52,12 @@ public class PacienteMedicoService {
     }
 
     public List<Paciente> getPacientesDeMedico(Long medicoId) {
-        Medico medico = userRepository.findById(medicoId)
-                .map(user -> (Medico) user)
-                .orElseThrow(() -> new RuntimeException("Médico no encontrado"));
-
+        Medico medico = medicoRepository.findById(medicoId)
+                .orElseThrow(() -> new RuntimeException("Médico no encontrado con id " + medicoId));
         return repository.findByMedico(medico).stream()
                 .map(PacienteMedico::getPaciente)
                 .distinct()
                 .collect(Collectors.toList());
     }
 }
+
