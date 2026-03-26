@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data // GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
 @AllArgsConstructor // GENERA CONSTRUCTOR CON TODOS LOS ATRIBUTOS
@@ -13,6 +14,7 @@ import lombok.*;
 @Table(name = "Users") // NOMBRE DE LA TABLA EN LA BASE DE DATOS
 @Entity // INDICA QUE ES UNA ENTIDAD DE JPA
 @Inheritance(strategy = InheritanceType.JOINED)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id // INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA
