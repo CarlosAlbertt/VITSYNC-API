@@ -16,14 +16,14 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    // Clave secreta para firmar los tokens (debe ser al menos 256 bits para HS256)
-    private static final String SECRET_KEY = "VitSyncSecretKey2024VitSyncSecretKey2024VitSyncSecretKey2024";
+    @Value("${jwt.secret}")
+    private String secretKey;
 
-    // Tiempo de expiración del token: 24 horas
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 24;
+    @Value("${jwt.expiration:86400000}")
+    private long expirationTime;
 
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
     // Extraer el nif del token
@@ -69,7 +69,7 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
