@@ -45,12 +45,18 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Autenticación (registro, login, verificación)
                         .requestMatchers("/api/auth/**").permitAll()
-                        // Especialidades – TODO PUBLIC (fase de testeo)
-                        .requestMatchers("/api/especialidades/**").permitAll()
-                        // Médicos – TODO PUBLIC (fase de testeo)
-                        .requestMatchers("/api/medicos/**").permitAll()
-                        // Usuarios (admin) – TODO PUBLIC (fase de testeo)
-                        .requestMatchers("/api/usuarios/**").permitAll()
+                        // ===== ESPECIALIDADES =====
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/admin").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").authenticated()
+                        .requestMatchers("/api/especialidades/**").hasRole("ADMIN")
+
+                        // ===== MÉDICOS =====
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/medicos/admin").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/medicos/**").authenticated()
+                        .requestMatchers("/api/medicos/**").hasRole("ADMIN")
+
+                        // ===== ADMIN USUARIOS =====
+                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         // WebSocket
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll() // Permitir leer ficheros (fotos, docs)
@@ -89,6 +95,7 @@ public class SecurityConfig {
         allowedOrigins.add("http://localhost:5173");
         allowedOrigins.add("http://localhost:3000");
         // Fallback para producción
+        allowedOrigins.add("http://localhost:4000"); // Puerto en el que estás ejecutando Vite
         allowedOrigins.add("https://vitsync.es");
         allowedOrigins.add("https://www.vitsync.es");
 
