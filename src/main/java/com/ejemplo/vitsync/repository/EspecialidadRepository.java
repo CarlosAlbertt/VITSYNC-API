@@ -36,4 +36,17 @@ public interface EspecialidadRepository extends JpaRepository<Especialidad, Long
 
     // Buscar por tipo
     List<Especialidad> findByTipoAndActivoTrue(String tipo);
+
+    // Verificación de unicidad (usados por EspecialidadService)
+    boolean existsByCodigo(String codigo);
+
+    boolean existsBySlug(String slug);
+
+    boolean existsByCodigoAndIdNot(String codigo, Long id);
+
+    boolean existsBySlugAndIdNot(String slug, Long id);
+
+    // Para la vista de admin (incluye inactivas con JOIN FETCH)
+    @Query("SELECT DISTINCT e FROM Especialidad e LEFT JOIN FETCH e.medicos ORDER BY e.nombre ASC")
+    List<Especialidad> findAllWithMedicos();
 }
