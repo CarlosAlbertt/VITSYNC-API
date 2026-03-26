@@ -79,6 +79,7 @@ public class SecurityConfig {
         // Añadir orígenes crìticos explícitamente (Fallback para producción)
         allowedOrigins.add("http://localhost:5173");
         allowedOrigins.add("http://localhost:3000");
+        allowedOrigins.add("http://localhost:4000"); // Puerto en el que estás ejecutando Vite
         allowedOrigins.add("https://vitsync.es");
         allowedOrigins.add("https://www.vitsync.es");
 
