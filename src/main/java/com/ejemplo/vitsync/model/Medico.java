@@ -3,6 +3,7 @@ package com.ejemplo.vitsync.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -35,6 +36,7 @@ public class Medico extends User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "especialidad_id")
     @ToString.Exclude
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Especialidad especialidad;
 
     @PrePersist

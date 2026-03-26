@@ -64,6 +64,7 @@ public class PacienteMedicoService {
 
         return repository.findByPaciente(paciente).stream()
                 .map(PacienteMedico::getMedico)
+                .distinct()
                 .collect(Collectors.toList());
     }
 
@@ -74,6 +75,7 @@ public class PacienteMedicoService {
 
         return repository.findByMedico(medico).stream()
                 .map(PacienteMedico::getPaciente)
+                .distinct()
                 .collect(Collectors.toList());
     }
 }
