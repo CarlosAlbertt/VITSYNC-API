@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll() // Permitir leer ficheros (fotos, docs)
                         .requestMatchers("/error").permitAll()
                         // Todas las demás rutas requieren autenticación
                         .anyRequest().authenticated())
@@ -76,6 +77,8 @@ public class SecurityConfig {
         }
 
         // Añadir orígenes crìticos explícitamente (Fallback para producción)
+        allowedOrigins.add("http://localhost:5173");
+        allowedOrigins.add("http://localhost:3000");
         allowedOrigins.add("https://vitsync.es");
         allowedOrigins.add("https://www.vitsync.es");
 

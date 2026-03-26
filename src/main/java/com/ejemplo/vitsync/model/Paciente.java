@@ -19,4 +19,15 @@ public class Paciente extends User {
     @Column(name = "historial_clinico_id")
     private String historialClinicoId;
 
+    @Column(name = "grupo_sanguineo")
+    private String grupoSanguineo;
+
+    @Column(name = "alergias", columnDefinition = "TEXT")
+    private String alergias;
+
+    @Column(name = "condiciones_previas", columnDefinition = "TEXT")
+    private String condicionesPrevias;
+
+    @Column(name = "contacto_emergencia")
+    private String contactoEmergencia;
 }

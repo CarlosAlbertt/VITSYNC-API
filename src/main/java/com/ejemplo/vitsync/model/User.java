@@ -69,4 +69,13 @@ public class User {
 
     @Column(name = "is_verified", nullable = false)
     private boolean isVerified = false;
+
+    @Column(name = "two_factor_enabled")
+    private Boolean twoFactorEnabled = false;
+
+    @Column(name = "suspended")
+    private Boolean suspended = false;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 }
