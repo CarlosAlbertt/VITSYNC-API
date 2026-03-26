@@ -38,23 +38,32 @@ public class SecurityConfig {
 
                 // Configurar CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
                 // Configurar autorización de peticiones
                 .authorizeHttpRequests(auth -> auth
-                        // Rutas públicas (sin autenticación)
+                        // Preflight CORS
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Autenticación (registro, login, verificación)
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").permitAll()
+                        // Especialidades – TODO PUBLIC (fase de testeo)
+                        .requestMatchers("/api/especialidades/**").permitAll()
+                        // Médicos – TODO PUBLIC (fase de testeo)
+                        .requestMatchers("/api/medicos/**").permitAll()
+                        // Usuarios (admin) – TODO PUBLIC (fase de testeo)
+                        .requestMatchers("/api/usuarios/**").permitAll()
+                        // WebSocket
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll() // Permitir leer ficheros (fotos, docs)
+                        // Página de error de Spring
                         .requestMatchers("/error").permitAll()
-                        // Todas las demás rutas requieren autenticación
+                        // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated())
 
-                // Sesiones stateless (no guardar estado en el servidor)
+                // Sesiones stateless
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // Añadir filtro JWT antes del filtro de autenticación por defecto
+                // Filtro JWT
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -79,22 +88,14 @@ public class SecurityConfig {
         // Añadir orígenes crìticos explícitamente (Fallback para producción)
         allowedOrigins.add("http://localhost:5173");
         allowedOrigins.add("http://localhost:3000");
+        // Fallback para producción
         allowedOrigins.add("https://vitsync.es");
         allowedOrigins.add("https://www.vitsync.es");
 
-        // Orígenes permitidos (con trim para evitar errores por espacios)
         configuration.setAllowedOrigins(allowedOrigins.stream().distinct().toList());
-
-        // Métodos HTTP permitidos
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
-        // Headers permitidos
         configuration.setAllowedHeaders(List.of("*"));
-
-        // Permitir credenciales (cookies, headers de autorización)
         configuration.setAllowCredentials(true);
-
-        // Exponer header de autorización
         configuration.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

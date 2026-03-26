@@ -2,13 +2,12 @@ package com.ejemplo.vitsync.dto;
 
 import com.ejemplo.vitsync.model.Especialidad;
 import com.ejemplo.vitsync.model.Medico;
-
-import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,9 +25,9 @@ public class EspecialidadResponse {
     private String slug;
     private String icono;
     private Boolean activo;
+    private List<MedicoSimple> medicos;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private List<MedicoSimple> medicos;
 
     // DTO interno simplificado para médicos (evita recursión)
     @Data
@@ -67,9 +66,9 @@ public class EspecialidadResponse {
                 .slug(especialidad.getSlug())
                 .icono(especialidad.getIcono())
                 .activo(especialidad.getActivo())
+                .medicos(medicosList)
                 .createdAt(especialidad.getCreatedAt())
                 .updatedAt(especialidad.getUpdatedAt())
-                .medicos(medicosList)
                 .build();
     }
 }

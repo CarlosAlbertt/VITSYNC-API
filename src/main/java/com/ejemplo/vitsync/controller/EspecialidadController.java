@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,7 +28,7 @@ public class EspecialidadController {
 
     // ==================== ENDPOINTS PÚBLICOS (GET) ====================
 
-    // GET /api/especialidades - Listar todas las especialidades activas
+    // GET /api/especialidades – Listar todas las especialidades activas
     @GetMapping
     public ResponseEntity<List<EspecialidadResponse>> getAllEspecialidades() {
         logger.info("Obteniendo todas las especialidades activas");
@@ -40,7 +39,18 @@ public class EspecialidadController {
         return ResponseEntity.ok(especialidades);
     }
 
-    // GET /api/especialidades/{id} - Obtener una especialidad por ID
+    // GET /api/especialidades/admin – Listar TODAS las especialidades (incluidas inactivas)
+    @GetMapping("/admin")
+    public ResponseEntity<List<EspecialidadResponse>> getAllEspecialidadesAdmin() {
+        logger.info("Obteniendo todas las especialidades (admin, incluye inactivas)");
+        List<EspecialidadResponse> especialidades = especialidadService.findAll()
+                .stream()
+                .map(EspecialidadResponse::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(especialidades);
+    }
+
+    // GET /api/especialidades/{id} – Obtener una especialidad por ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getEspecialidadById(@PathVariable Long id) {
         logger.info("Buscando especialidad con ID: {}", id);
@@ -49,7 +59,7 @@ public class EspecialidadController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET /api/especialidades/slug/{slug} - Obtener por slug
+    // GET /api/especialidades/slug/{slug} – Obtener por slug
     @GetMapping("/slug/{slug}")
     public ResponseEntity<?> getEspecialidadBySlug(@PathVariable String slug) {
         logger.info("Buscando especialidad con slug: {}", slug);
@@ -58,7 +68,7 @@ public class EspecialidadController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET /api/especialidades/tipo/{tipo} - Filtrar por tipo
+    // GET /api/especialidades/tipo/{tipo} – Filtrar por tipo
     @GetMapping("/tipo/{tipo}")
     public ResponseEntity<List<EspecialidadResponse>> getEspecialidadesByTipo(@PathVariable String tipo) {
         logger.info("Buscando especialidades de tipo: {}", tipo);
@@ -69,75 +79,62 @@ public class EspecialidadController {
         return ResponseEntity.ok(especialidades);
     }
 
-    // ==================== ENDPOINTS ADMIN (requieren role ADMIN)
-    // ====================
+    // ==================== ENDPOINTS DE ESCRITURA (ADMIN CRUD) ====================
 
-    // GET /api/especialidades/admin - Listar todas (incluidas inactivas)
-    @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<EspecialidadResponse>> getAllEspecialidadesAdmin() {
-        logger.info("ADMIN: Obteniendo todas las especialidades (incluidas inactivas)");
-        List<EspecialidadResponse> especialidades = especialidadService.findAll()
-                .stream()
-                .map(EspecialidadResponse::fromEntity)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(especialidades);
-    }
-
-    // POST /api/especialidades - Crear nueva especialidad
+    // POST /api/especialidades – Crear una nueva especialidad
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createEspecialidad(@Valid @RequestBody EspecialidadRequest request) {
-        logger.info("ADMIN: Creando nueva especialidad: {}", request.getNombre());
+        logger.info("Creando nueva especialidad: {}", request.getNombre());
         try {
-            var created = especialidadService.create(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(EspecialidadResponse.fromEntity(created));
+            EspecialidadResponse response = EspecialidadResponse.fromEntity(especialidadService.create(request));
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             logger.warn("Error al crear especialidad: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
-    // PUT /api/especialidades/{id} - Actualizar especialidad
+    // PUT /api/especialidades/{id} – Actualizar una especialidad existente
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateEspecialidad(@PathVariable Long id,
-            @Valid @RequestBody EspecialidadRequest request) {
-        logger.info("ADMIN: Actualizando especialidad ID: {}", id);
+                                                 @Valid @RequestBody EspecialidadRequest request) {
+        logger.info("Actualizando especialidad con ID: {}", id);
         try {
-            var updated = especialidadService.update(id, request);
-            return ResponseEntity.ok(EspecialidadResponse.fromEntity(updated));
+            EspecialidadResponse response = EspecialidadResponse.fromEntity(especialidadService.update(id, request));
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            logger.warn("Error al actualizar especialidad: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            logger.warn("Error al actualizar especialidad {}: {}", id, e.getMessage());
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("no encontrada")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", msg));
         }
     }
 
-    // DELETE /api/especialidades/{id} - Eliminar especialidad
+    // DELETE /api/especialidades/{id} – Eliminar una especialidad
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteEspecialidad(@PathVariable Long id) {
-        logger.info("ADMIN: Eliminando especialidad ID: {}", id);
+    public ResponseEntity<?> deleteEspecialidad(@PathVariable Long id) {
+        logger.info("Eliminando especialidad con ID: {}", id);
         try {
             especialidadService.delete(id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
-            logger.warn("Error al eliminar especialidad: {}", e.getMessage());
+            logger.warn("Error al eliminar especialidad {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
 
-    // PATCH /api/especialidades/{id}/toggle-activo - Activar/desactivar
+    // PATCH /api/especialidades/{id}/toggle-activo – Activar o desactivar una especialidad
     @PatchMapping("/{id}/toggle-activo")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleActivo(@PathVariable Long id) {
-        logger.info("ADMIN: Toggling activo para especialidad ID: {}", id);
+        logger.info("Alternando estado activo de especialidad con ID: {}", id);
         try {
-            var toggled = especialidadService.toggleActivo(id);
-            return ResponseEntity.ok(EspecialidadResponse.fromEntity(toggled));
+            EspecialidadResponse response = EspecialidadResponse.fromEntity(especialidadService.toggleActivo(id));
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            logger.warn("Error al toggle activo: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            logger.warn("Error al alternar estado de especialidad {}: {}", id, e.getMessage());
+            return ResponseEntity.notFound().build();
         }
     }
 }

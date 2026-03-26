@@ -87,6 +87,18 @@ protected void doFilterInternal(HttpServletRequest request,
             });
         }
 
+    } catch (io.jsonwebtoken.ExpiredJwtException e) {
+        logger.warn("El token JWT ha expirado: " + e.getMessage());
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"error\": \"El token ha expirado. Por favor, inicie sesión de nuevo.\"}");
+        return; // Detener la cadena de filtros
+    } catch (io.jsonwebtoken.security.SignatureException | io.jsonwebtoken.MalformedJwtException e) {
+        logger.warn("Firma de JWT inválida o token mal formado: " + e.getMessage());
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"error\": \"Token inválido o mal formado.\"}");
+        return;
     } catch (Exception e) {
         logger.error("Error procesando JWT", e);
     }
