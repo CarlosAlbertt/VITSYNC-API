@@ -55,6 +55,11 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").permitAll()
                         .requestMatchers("/api/especialidades/**").hasRole("ADMIN")
 
+                        // ===== ENFERMEDADES =====
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/enfermedades/admin").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/enfermedades/**").permitAll()
+                        .requestMatchers("/api/enfermedades/**").hasRole("ADMIN")
+
                         // ===== MÉDICOS =====
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/medicos/admin").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/medicos/**").permitAll()

@@ -4,6 +4,62 @@
 -- Médico de prueba   → NIF: 87654321B  Contraseña: secret
 -- ============================================================
 
+-- 0. Enfermedades y tratamientos (idempotente por nombre)
+INSERT INTO enfermedades (nombre, descripcion, especialidad_relacionada, activo, created_at, updated_at)
+SELECT nombre, descripcion, especialidad_relacionada, TRUE, NOW(), NOW()
+FROM (VALUES
+    ('Hipertensión Arterial',   'Trastorno en el que los vasos sanguíneos tienen una tensión persistentemente alta, lo que puede dañarlos.',                              'Cardiología'),
+    ('Diabetes Mellitus',       'Enfermedad crónica que afecta la forma en que el cuerpo convierte los alimentos en energía.',                                            'Endocrinología y Nutrición'),
+    ('Asma',                    'Afección en la que las vías respiratorias se estrechan e hinchan, lo que puede producir mayor mucosidad.',                               'Neumología'),
+    ('Migraña',                 'Dolor de cabeza crónico que puede causar un dolor pulsátil intenso o una sensación de latido, generalmente de un solo lado.',            'Neurología'),
+    ('Acné Severo',             'Afección cutánea que ocurre cuando los folículos pilosos se tapan con grasa y células cutáneas muertas.',                                'Dermatología y Venereología'),
+    ('Cataratas',               'Opacidad de la lente natural (o cristalino) del ojo, que se encuentra detrás del iris y la pupila.',                                     'Oftalmología'),
+    ('Infección Urinaria (ITU)','Infección en cualquier parte del sistema urinario: riñones, uréteres, vejiga y uretra.',                                                 'Urología'),
+    ('Artrosis',                'Enfermedad articular degenerativa que afecta el cartílago que recubre los extremos de los huesos.',                                      'Cirugía Ortopédica y Traumatología'),
+    ('Alergia Estacional',      'Reacción del sistema inmunológico a ciertas sustancias como el polen, los ácaros o la caspa de animales.',                               'Alergología'),
+    ('Ansiedad y Depresión',    'Trastornos del estado de ánimo que pueden afectar significativamente la calidad de vida y el funcionamiento diario.',                    'Psicología Clínica')
+) AS data(nombre, descripcion, especialidad_relacionada)
+WHERE NOT EXISTS (SELECT 1 FROM enfermedades e WHERE e.nombre = data.nombre);
+
+INSERT INTO enfermedad_tratamientos (enfermedad_id, tratamiento, orden)
+SELECT e.id, t.tratamiento, t.orden
+FROM enfermedades e
+JOIN (VALUES
+    ('Hipertensión Arterial',    'Medicación antihipertensiva',           0),
+    ('Hipertensión Arterial',    'Cambios en la dieta',                   1),
+    ('Hipertensión Arterial',    'Ejercicio regular',                     2),
+    ('Diabetes Mellitus',        'Insulinoterapia',                       0),
+    ('Diabetes Mellitus',        'Control de glucosa',                    1),
+    ('Diabetes Mellitus',        'Dieta especializada',                   2),
+    ('Asma',                     'Inhaladores de rescate',                0),
+    ('Asma',                     'Esteroides inhalados',                  1),
+    ('Asma',                     'Inmunoterapia',                         2),
+    ('Migraña',                  'Analgésicos',                           0),
+    ('Migraña',                  'Triptanes',                             1),
+    ('Migraña',                  'Terapias preventivas',                  2),
+    ('Acné Severo',              'Retinoides tópicos',                    0),
+    ('Acné Severo',              'Antibióticos orales',                   1),
+    ('Acné Severo',              'Isotretinoína',                         2),
+    ('Cataratas',                'Cirugía de cataratas',                  0),
+    ('Cataratas',                'Gafas graduadas temporales',            1),
+    ('Infección Urinaria (ITU)', 'Antibióticos',                          0),
+    ('Infección Urinaria (ITU)', 'Analgésicos urinarios',                 1),
+    ('Infección Urinaria (ITU)', 'Aumento de ingesta de líquidos',        2),
+    ('Artrosis',                 'Fisioterapia',                          0),
+    ('Artrosis',                 'Analgésicos y antiinflamatorios',       1),
+    ('Artrosis',                 'Cirugía de reemplazo articular',        2),
+    ('Alergia Estacional',       'Antihistamínicos',                      0),
+    ('Alergia Estacional',       'Descongestionantes',                    1),
+    ('Alergia Estacional',       'Inmunoterapia (vacunas)',               2),
+    ('Ansiedad y Depresión',     'Psicoterapia',                          0),
+    ('Ansiedad y Depresión',     'Terapia cognitivo-conductual',          1),
+    ('Ansiedad y Depresión',     'Medicación psiquiátrica',               2)
+) AS t(nombre_enfermedad, tratamiento, orden) ON e.nombre = t.nombre_enfermedad
+WHERE NOT EXISTS (
+    SELECT 1 FROM enfermedad_tratamientos et
+    WHERE et.enfermedad_id = e.id AND et.tratamiento = t.tratamiento
+);
+
 -- 1. Especialidades (idempotente por unique en codigo)
 INSERT INTO especialidades (nombre, codigo, descripcion, tipo, slug, icono, activo, created_at, updated_at)
 VALUES
