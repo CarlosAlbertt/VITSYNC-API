@@ -10,42 +10,53 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/upload")
 public class FileUploadController {
 
-    private final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
+    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
+    private static final long MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
     @PostMapping("/avatar")
     public ResponseEntity<?> uploadAvatar(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Archivo vacío");
+            return ResponseEntity.badRequest().body("Archivo vacío");
+        }
+
+        if (file.getSize() > MAX_SIZE_BYTES) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body("El archivo supera el límite de 5 MB");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !originalFilename.contains(".")) {
+            return ResponseEntity.badRequest().body("Nombre de archivo inválido");
+        }
+
+        String extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            return ResponseEntity.badRequest()
+                    .body("Tipo de archivo no permitido. Se aceptan: JPG, JPEG, PNG, GIF, WEBP");
         }
 
         try {
-            // Crear el directorio si no existe
             File directory = new File(UPLOAD_DIR);
             if (!directory.exists()) {
                 directory.mkdirs();
             }
 
-            // Generar nombre de archivo único para evitar colisiones
-            String originalFilename = file.getOriginalFilename();
-            String extension = originalFilename != null ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
             String uniqueName = UUID.randomUUID().toString() + extension;
-
-            // Guardar el archivo en el directorio local
             Path filepath = Paths.get(UPLOAD_DIR, uniqueName);
             file.transferTo(filepath.toFile());
 
-            // Devolver la ruta relativa a la que se puede acceder
-            String fileUrl = "/uploads/" + uniqueName;
-            return ResponseEntity.ok(Map.of("url", fileUrl));
-
+            return ResponseEntity.ok(Map.of("url", "/uploads/" + uniqueName));
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al guardar archivo en el servidor");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al guardar el archivo en el servidor");
         }
     }
 }
