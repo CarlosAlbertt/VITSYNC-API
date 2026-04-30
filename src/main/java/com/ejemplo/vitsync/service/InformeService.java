@@ -17,8 +17,20 @@ public class InformeService {
         return informeRepository.findAll();
     }
 
+    public List<Informe> getInformesByPacienteId(Long pacienteId) {
+        return informeRepository.findByPacienteId(pacienteId);
+    }
+
+    public List<Informe> getInformesByMedicoId(Long medicoId) {
+        return informeRepository.findByMedicoId(medicoId);
+    }
+
     public Informe getInformeById(Long id) {
         return informeRepository.findById(id).orElse(null);
+    }
+
+    public Informe saveInforme(Informe informe) {
+        return informeRepository.save(informe);
     }
 
     public void updateNotasPersonales(Long id, String notas) {

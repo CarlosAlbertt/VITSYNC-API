@@ -7,6 +7,7 @@ import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.UserRepository;
 import com.ejemplo.vitsync.util.JwtUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,9 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+
+    @Value("${app.email.verification.skip:false}")
+    private boolean skipEmailVerification;
 
     public AuthService(UserRepository userRepository, JwtUtil jwtUtil, PasswordEncoder passwordEncoder,
             EmailService emailService) {
@@ -93,13 +97,17 @@ public class AuthService {
         user.setPostCode(request.getPostCode());
         user.setCountry(request.getCountry());
 
-        String randomCode = String.valueOf(new Random().nextInt(899999) + 100000);
-        user.setVerificationCode(randomCode);
-        user.setVerified(false);
-        // Guardar usuario
-        userRepository.save(user);
-
-        emailService.sendVerificationEmail(user.getEmail(), randomCode);
+        if (skipEmailVerification) {
+            user.setVerified(true);
+            user.setVerificationCode(null);
+            userRepository.save(user);
+        } else {
+            String randomCode = String.valueOf(new Random().nextInt(899999) + 100000);
+            user.setVerificationCode(randomCode);
+            user.setVerified(false);
+            userRepository.save(user);
+            emailService.sendVerificationEmail(user.getEmail(), randomCode);
+        }
 
         // Generar token JWT
         String token = jwtUtil.generateToken(user.getNif(), user.getRole().name());

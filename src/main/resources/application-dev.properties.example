@@ -14,14 +14,24 @@ spring.datasource.password=<DB_PASSWORD>
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
+# Necesario para que Hibernate cree las tablas antes de ejecutar data-dev.sql
+spring.jpa.defer-datasource-initialization=true
+# Carga automática de data-dev.sql al arrancar
+spring.sql.init.platform=dev
+spring.sql.init.mode=always
 
 # CORS: Localhost
 app.cors.allowed-origins=http://localhost:5173,http://localhost:8080
 
 # JWT
-jwt.secret=<TU_JWT_SECRET>
+# jwt.secret=<TU_JWT_SECRET>
+
+jwt.secret=<4z6B9EbGdKgNjQnTqUtZvXyZ2s5v8y/B?9(H+MbQeThWmZq4t7w9z$C&F)J@NcR7>
 jwt.expiration=86400000
 
 # Email: Resend API
 resend.api.key=<TU_RESEND_API_KEY>
 vitsync.email.from=VitSync <no-reply@vitsync.es>
+
+# Dev: omitir verificación de email (nunca activar en producción)
+app.email.verification.skip=true

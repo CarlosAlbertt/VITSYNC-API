@@ -101,4 +101,32 @@ public class EmailService {
                 """;
         sendHtmlEmail(destinatary, subject, htmlContent);
     }
+
+    public void send2FACodeEmail(String destinatary, String code) {
+        String subject = "VitSync - Código de seguridad 2FA";
+
+        String htmlContent = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #0d9488; padding: 20px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Vitsync</h1>
+                    </div>
+                    <div style="padding: 30px; background-color: #ffffff;">
+                        <h2 style="color: #333333; margin-top: 0;">Código de Verificación</h2>
+                        <p style="color: #555555; line-height: 1.6;">
+                            Alguien está intentando acceder a tu cuenta de Vitsync. Para continuar, introduce el siguiente código de seguridad:
+                        </p>
+                        <div style="background-color: #f3f4f6; padding: 15px; text-align: center; border-radius: 6px; margin: 20px 0;">
+                            <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #0d9488;">%s</span>
+                        </div>
+                        <p style="color: #555555; font-size: 14px;">
+                            Este código caducará en breve. Si no has sido tú, te recomendamos cambiar tu contraseña inmediatamente.
+                        </p>
+                    </div>
+                    <div style="background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #999999;">
+                        &copy; 2026 Vitsync Team.
+                    </div>
+                </div>
+                """.formatted(code);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
 }

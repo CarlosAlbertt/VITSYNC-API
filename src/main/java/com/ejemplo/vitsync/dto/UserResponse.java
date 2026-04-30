@@ -30,8 +30,10 @@ public class UserResponse {
     private String postCode;
     private String country;
     private boolean isVerified;
+    private Boolean suspended;
+    private String avatarUrl;
 
-    // Método factory para convertir entidad a DTO (sin exponer password)
+    // Método factory para convertir entidad a DTO (sin exponer password ni verificationCode)
     public static UserResponse fromEntity(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -48,6 +50,8 @@ public class UserResponse {
                 .postCode(user.getPostCode())
                 .country(user.getCountry())
                 .isVerified(user.isVerified())
+                .suspended(user.getSuspended())
+                .avatarUrl(user.getAvatarUrl())
                 .build();
     }
 }

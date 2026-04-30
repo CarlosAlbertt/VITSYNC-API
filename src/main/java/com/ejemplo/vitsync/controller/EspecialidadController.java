@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,6 +42,7 @@ public class EspecialidadController {
 
     // GET /api/especialidades/admin – Listar TODAS las especialidades (incluidas inactivas)
     @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<EspecialidadResponse>> getAllEspecialidadesAdmin() {
         logger.info("Obteniendo todas las especialidades (admin, incluye inactivas)");
         List<EspecialidadResponse> especialidades = especialidadService.findAll()
@@ -83,6 +85,7 @@ public class EspecialidadController {
 
     // POST /api/especialidades – Crear una nueva especialidad
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createEspecialidad(@Valid @RequestBody EspecialidadRequest request) {
         logger.info("Creando nueva especialidad: {}", request.getNombre());
         try {
@@ -96,6 +99,7 @@ public class EspecialidadController {
 
     // PUT /api/especialidades/{id} – Actualizar una especialidad existente
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateEspecialidad(@PathVariable Long id,
                                                  @Valid @RequestBody EspecialidadRequest request) {
         logger.info("Actualizando especialidad con ID: {}", id);
@@ -114,6 +118,7 @@ public class EspecialidadController {
 
     // DELETE /api/especialidades/{id} – Eliminar una especialidad
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteEspecialidad(@PathVariable Long id) {
         logger.info("Eliminando especialidad con ID: {}", id);
         try {
@@ -127,6 +132,7 @@ public class EspecialidadController {
 
     // PATCH /api/especialidades/{id}/toggle-activo – Activar o desactivar una especialidad
     @PatchMapping("/{id}/toggle-activo")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleActivo(@PathVariable Long id) {
         logger.info("Alternando estado activo de especialidad con ID: {}", id);
         try {

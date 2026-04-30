@@ -39,10 +39,15 @@ public class SecurityConfig {
                 // Configurar CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
+                // Permitir frames same-origin (necesario para la consola H2 en dev)
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+
                 // Configurar autorización de peticiones
                 .authorizeHttpRequests(auth -> auth
                         // Preflight CORS
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Consola H2 (solo activa con perfil dev)
+                        .requestMatchers("/h2-console/**").permitAll()
                         // Autenticación (registro, login, verificación)
                         .requestMatchers("/api/auth/**").permitAll()
                         // ===== ESPECIALIDADES =====

@@ -25,8 +25,7 @@ public class UserUpdateRequest {
     @NotBlank(message = "El segundo apellido es obligatorio")
     private String secondName;
 
-    @NotBlank(message = "El NIF/CIF es obligatorio")
-    private String nif;
+    private String nif; // Necesario para AdminUserService
 
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email debe ser válido")
@@ -35,9 +34,7 @@ public class UserUpdateRequest {
     @NotNull(message = "El género es obligatorio")
     private Gender gender;
 
-    // El rol solo lo puede cambiar un admin
-    @NotNull(message = "El rol es obligatorio")
-    private Role role;
+    private Role role; // Necesario para AdminUserService
 
     @NotBlank(message = "La fecha de nacimiento es obligatoria")
     private String birthDate;
@@ -56,4 +53,10 @@ public class UserUpdateRequest {
 
     // Contraseña opcional: si se envía se hashea y actualiza; si no, se deja la actual
     private String password;
+
+    // Campos médicos para pacientes
+    private String bloodType;
+    private String allergies;
+    private String medicalConditions;
+    private String emergencyContact;
 }
