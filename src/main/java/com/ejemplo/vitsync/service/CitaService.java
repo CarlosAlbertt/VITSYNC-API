@@ -28,4 +28,8 @@ public class CitaService {
             citaRepository.save(cita);
         }
     }
+
+    public Cita saveCita(Cita cita) {
+        return citaRepository.save(cita);
+    }
 }

@@ -45,6 +45,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Autenticación (registro, login, verificación)
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Public APIs para reserva de citas
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/hospitales", "/api/hospitales/**", "/api/horarios", "/api/horarios/**", "/api/medicos", "/api/medicos/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/citas", "/api/citas/**").permitAll()
                         // ===== ESPECIALIDADES =====
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/admin").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").authenticated()
@@ -52,7 +55,6 @@ public class SecurityConfig {
 
                         // ===== MÉDICOS =====
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/medicos/admin").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/medicos/**").authenticated()
                         .requestMatchers("/api/medicos/**").hasRole("ADMIN")
 
                         // ===== ADMIN USUARIOS =====

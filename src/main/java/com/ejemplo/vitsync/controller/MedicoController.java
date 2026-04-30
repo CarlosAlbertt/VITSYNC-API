@@ -28,13 +28,14 @@ public class MedicoController {
 
     // ==================== ENDPOINTS GET (PÚBLICOS) ====================
 
-    // GET /api/medicos – Listar todos los médicos activos
+    // GET /api/medicos – Listar todos los médicos activos, opcionalmente filtrados por nombre de especialidad
     @GetMapping
-    public ResponseEntity<List<MedicoResponse>> getAllMedicos() {
-        logger.info("Obteniendo todos los médicos activos");
+    public ResponseEntity<List<MedicoResponse>> getAllMedicos(@RequestParam(required = false) String especialidad) {
+        logger.info("Obteniendo médicos activos. Filtro especialidad: {}", especialidad);
         List<MedicoResponse> medicos = medicoService.findAllActive()
                 .stream()
                 .map(MedicoResponse::fromEntity)
+                .filter(m -> especialidad == null || (m.getEspecialidad() != null && m.getEspecialidad().equals(especialidad)))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(medicos);
     }
