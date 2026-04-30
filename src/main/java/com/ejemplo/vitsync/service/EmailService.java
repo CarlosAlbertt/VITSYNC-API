@@ -101,4 +101,35 @@ public class EmailService {
                 """;
         sendHtmlEmail(destinatary, subject, htmlContent);
     }
+
+    public void sendCitaConfirmationEmail(String destinatary, String pacienteNombre, String doctorNombre, String fecha, String hora, String hospital) {
+        String subject = "Confirmación de tu Cita en VitSync";
+
+        String htmlContent = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                <div style="background-color: #0d9488; padding: 20px; text-align: center;">
+                                    <h1 style="color: white; margin: 0; font-size: 24px;">Vitsync</h1>
+                                </div>
+                                <div style="padding: 30px; background-color: #ffffff;">
+                                    <h2 style="color: #333333; margin-top: 0;">¡Hola %s!</h2>
+                                    <p style="color: #555555; line-height: 1.6;">
+                                        Tu cita médica ha sido confirmada con éxito. Aquí tienes los detalles:
+                                    </p>
+                                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                                        <p><strong>Hospital:</strong> %s</p>
+                                        <p><strong>Médico:</strong> %s</p>
+                                        <p><strong>Fecha:</strong> %s</p>
+                                        <p><strong>Hora:</strong> %s</p>
+                                    </div>
+                                    <p style="color: #555555; font-size: 14px;">
+                                        Si necesitas modificar o cancelar la cita, accede a tu perfil de VitSync.
+                                    </p>
+                                </div>
+                                <div style="background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #999999;">
+                                    &copy; 2026 Vitsync Team.
+                                </div>
+                            </div>
+                """.formatted(pacienteNombre, hospital, doctorNombre, fecha, hora);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
 }
