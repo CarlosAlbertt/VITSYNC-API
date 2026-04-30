@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,6 +42,7 @@ public class MedicoController {
 
     // GET /api/medicos/admin – Listar TODOS los médicos (activos e inactivos)
     @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<MedicoResponse>> getAllMedicosAdmin() {
         logger.info("Obteniendo todos los médicos (admin, incluye inactivos)");
         List<MedicoResponse> medicos = medicoService.findAll()
@@ -74,6 +76,7 @@ public class MedicoController {
 
     // POST /api/medicos – Crear nuevo médico
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createMedico(@Valid @RequestBody MedicoRequest request) {
         logger.info("Creando nuevo médico: {} {}", request.getName(), request.getFirstName());
         try {
@@ -87,6 +90,7 @@ public class MedicoController {
 
     // PUT /api/medicos/{id} – Actualizar médico existente
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateMedico(@PathVariable Long id,
                                            @Valid @RequestBody MedicoRequest request) {
         logger.info("Actualizando médico con ID: {}", id);
@@ -105,6 +109,7 @@ public class MedicoController {
 
     // DELETE /api/medicos/{id} – Eliminar médico
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteMedico(@PathVariable Long id) {
         logger.info("Eliminando médico con ID: {}", id);
         try {
@@ -118,6 +123,7 @@ public class MedicoController {
 
     // PATCH /api/medicos/{id}/toggle-activo – Activar o desactivar médico
     @PatchMapping("/{id}/toggle-activo")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleActivo(@PathVariable Long id) {
         logger.info("Alternando estado activo del médico con ID: {}", id);
         try {
