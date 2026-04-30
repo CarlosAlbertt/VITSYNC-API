@@ -6,21 +6,22 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@Data // GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
-@AllArgsConstructor // GENERA CONSTRUCTOR CON TODOS LOS ATRIBUTOS
-@NoArgsConstructor // GENERA CONSTRUCTOR VACIO
-@Table(name = "Users") // NOMBRE DE LA TABLA EN LA BASE DE DATOS
-@Entity // INDICA QUE ES UNA ENTIDAD DE JPA
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "Users")
+@Entity
 @Inheritance(strategy = InheritanceType.JOINED)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
-    @Id // INDICA QUE ES LA CLAVE PRIMARIA POR LO TANTO SE GENERA AUTOMÁTICAMENTE EN LA
-    // BASE DE DATOS
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // INDICA QUE EL VALOR SE GENERA AUTOMÁTICAMENTE
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank // INDICA QUE NO PUEDE SER NULO NI VACIO
+    @NotBlank
     private String name;
 
     @NotBlank
@@ -40,7 +41,7 @@ public class User {
     @NotBlank
     private String password;
 
-    @Enumerated(EnumType.STRING) // INDICA QUE ES UN ENUMERADO Y SE ALMACENA COMO CADENA DE TEXTO
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Gender gender;
 
@@ -63,7 +64,6 @@ public class User {
     @NotBlank
     private String country;
 
-    // Campos para verificación de correo electrónico
     @Column(name = "verification_code")
     private String verificationCode;
 
@@ -78,4 +78,16 @@ public class User {
 
     @Column(name = "avatar_url")
     private String avatarUrl;
+
+    @Column(name = "security_q1")
+    private String securityQuestion1;
+
+    @Column(name = "security_a1")
+    private String securityAnswer1;
+
+    @Column(name = "security_q2")
+    private String securityQuestion2;
+
+    @Column(name = "security_a2")
+    private String securityAnswer2;
 }

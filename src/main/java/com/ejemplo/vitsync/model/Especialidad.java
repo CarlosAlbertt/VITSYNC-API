@@ -1,5 +1,6 @@
 package com.ejemplo.vitsync.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -47,7 +48,9 @@ public class Especialidad {
     // Relación: Una especialidad puede tener muchos médicos
     @OneToMany(mappedBy = "especialidad", fetch = FetchType.LAZY)
     @ToString.Exclude // Evitar recursión infinita en toString
+    @JsonIgnore // Evitar recursión infinita en JSON
     private List<Medico> medicos = new ArrayList<>();
+
 
     @PrePersist
     protected void onCreate() {
