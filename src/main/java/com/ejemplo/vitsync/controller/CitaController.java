@@ -8,12 +8,21 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 import com.ejemplo.vitsync.dto.CitaRequest;
+import com.ejemplo.vitsync.model.Medico;
 import com.ejemplo.vitsync.service.EmailService;
 import java.time.LocalDateTime;
 
+/**
+ * Controlador REST para la gestión de citas médicas.
+ *
+ * Endpoints:
+ * - GET /api/citas → Lista todas las citas
+ * - POST /api/citas → Crea una nueva cita y envía email de confirmación
+ *
+ * NOTA: @CrossOrigin eliminado porque CORS se gestiona globalmente en SecurityConfig.
+ */
 @RestController
 @RequestMapping("/api/citas")
-@CrossOrigin(origins = "*")
 public class CitaController {
 
     private final CitaService citaService;
@@ -33,15 +42,17 @@ public class CitaController {
     public ResponseEntity<?> crearCita(@RequestBody CitaRequest request) {
         try {
             Cita cita = new Cita();
-            
-            // Parse doctor ID
+
+            // Asignar médico mediante referencia JPA (en vez de ID plano)
             if (request.getDoctor() != null && request.getDoctor().get("id") != null) {
                 Object docId = request.getDoctor().get("id");
                 if (!docId.toString().equals("any")) {
-                    cita.setMedicoId(Long.parseLong(docId.toString()));
+                    Medico medicoRef = new Medico();
+                    medicoRef.setId(Long.parseLong(docId.toString()));
+                    cita.setMedico(medicoRef);
                 }
             }
-            
+
             // Parse fecha y hora ("2026-05-10T00:00:00.000Z" y "09:30")
             if (request.getDate() != null && request.getTime() != null) {
                 String dateStr = request.getDate().substring(0, 10);

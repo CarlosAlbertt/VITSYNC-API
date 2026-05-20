@@ -21,9 +21,11 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthService authService;
+    private final com.ejemplo.vitsync.util.JwtUtil jwtUtil;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, com.ejemplo.vitsync.util.JwtUtil jwtUtil) {
         this.authService = authService;
+        this.jwtUtil = jwtUtil;
     }
 
     // POST /api/auth/login - Iniciar sesión
@@ -62,16 +64,31 @@ public class AuthController {
         }
     }
 
-    // GET /api/auth/validate - Validar token (opcional, útil para el frontend)
+    // GET /api/auth/validate - Validar token JWT (decodifica y verifica firma + expiración)
     @GetMapping("/validate")
     public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
         try {
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.ok().body("{\"valid\": true}");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("{\"valid\": false, \"error\": \"Token no proporcionado\"}");
             }
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"valid\": false}");
+
+            String token = authHeader.substring(7);
+            String nif = jwtUtil.extractNif(token);
+
+            // Validar firma, expiración y que el usuario existe
+            if (nif != null && jwtUtil.validateToken(token, nif)) {
+                String role = jwtUtil.extractRole(token);
+                return ResponseEntity.ok()
+                        .body("{\"valid\": true, \"nif\": \"" + nif + "\", \"role\": \"" + role + "\"}");
+            }
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("{\"valid\": false, \"error\": \"Token inválido o expirado\"}");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"valid\": false}");
+            logger.warn("Error validando token: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("{\"valid\": false, \"error\": \"" + e.getMessage() + "\"}");
         }
     }
 

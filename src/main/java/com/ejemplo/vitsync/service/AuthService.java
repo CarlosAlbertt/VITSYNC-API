@@ -114,24 +114,30 @@ public class AuthService {
                 .build();
     }
 
+    /**
+     * Verifica la cuenta del usuario comparando el código recibido por email.
+     * Usa una única query a BD (findByEmail) en lugar de múltiples consultas.
+     *
+     * @param email Email del usuario a verificar
+     * @param code  Código de 6 dígitos enviado por email
+     * @throws RuntimeException si el email no existe o el código es incorrecto
+     */
     public void verifyAccount(String email, String code) {
-        userRepository.findByEmail(email);
+        // Una sola query: buscar usuario por email o lanzar excepción
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("El email no está registrado"));
 
-        if (userRepository.existsByEmail(email)) {
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-            if (user.getVerificationCode().equals(code)) {
-                user.setVerified(true);
-                user.setVerificationCode(null);
-                userRepository.save(user);
-
-                emailService.sendWelcomeEmail(user.getEmail());
-            } else {
-                throw new RuntimeException("Código de verificación incorrecto");
-            }
-        } else {
-            throw new RuntimeException("El email no está registrado");
+        // Validar código de verificación
+        if (!code.equals(user.getVerificationCode())) {
+            throw new RuntimeException("Código de verificación incorrecto");
         }
+
+        // Marcar como verificado y limpiar el código
+        user.setVerified(true);
+        user.setVerificationCode(null);
+        userRepository.save(user);
+
+        // Enviar email de bienvenida
+        emailService.sendWelcomeEmail(user.getEmail());
     }
 }

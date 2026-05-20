@@ -34,3 +34,7 @@ build/
 
 ### Configuración Local ###
 src/main/resources/application-dev.properties
+
+### Configuración Raíz (plantilla) ###
+# SEGURIDAD: No versionar archivos de configuración que puedan contener credenciales
+/application.properties

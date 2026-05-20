@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -24,7 +25,7 @@ public class UserResponse {
     private String email;
     private Gender gender;
     private Role role;
-    private String birthDate;
+    private LocalDate birthDate;
     private String phone;
     private String address;
     private String postCode;
