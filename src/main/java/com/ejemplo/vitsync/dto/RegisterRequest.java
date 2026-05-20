@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 
 @Data
 @AllArgsConstructor
@@ -19,7 +20,7 @@ public class RegisterRequest {
     @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]+$", message = "El nombre solo puede contener letras")
     private String name;
 
-    @NotBlank(message = "El primer apellidoid es obligatorio")
+    @NotBlank(message = "El primer apellido es obligatorio")
     @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]+$", message = "El primer apellido solo puede contener letras")
     private String firstName;
 
@@ -45,8 +46,8 @@ public class RegisterRequest {
     @NotNull(message = "El rol es obligatorio")
     private Role role;
 
-    @NotBlank(message = "La fecha de nacimiento es obligatoria")
-    private String birthDate;
+    @NotNull(message = "La fecha de nacimiento es obligatoria")
+    private LocalDate birthDate;
 
     @NotBlank(message = "El teléfono es obligatorio")
     @Pattern(regexp = "^\\+?[\\d\\s-]{9,15}$", message = "El formato del teléfono es inválido")

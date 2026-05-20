@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -39,8 +40,8 @@ public class UserUpdateRequest {
     @NotNull(message = "El rol es obligatorio")
     private Role role;
 
-    @NotBlank(message = "La fecha de nacimiento es obligatoria")
-    private String birthDate;
+    @NotNull(message = "La fecha de nacimiento es obligatoria")
+    private LocalDate birthDate;
 
     @NotBlank(message = "El teléfono es obligatorio")
     private String phone;

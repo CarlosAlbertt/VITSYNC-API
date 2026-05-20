@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import java.time.LocalDate;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data // GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
@@ -50,8 +51,9 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
-    @NotBlank
-    private String birthDate;
+    /** Fecha de nacimiento del usuario — almacenada como LocalDate para consultas temporales */
+    @Column(nullable = false)
+    private LocalDate birthDate;
 
     @NotBlank
     private String phone;

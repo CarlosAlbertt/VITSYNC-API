@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -21,7 +22,7 @@ public class MedicoResponse {
     private String secondName;
     private String nif;
     private String email;
-    private String birthDate;
+    private LocalDate birthDate;
     private String phone;
     private String address;
     private String postCode;
