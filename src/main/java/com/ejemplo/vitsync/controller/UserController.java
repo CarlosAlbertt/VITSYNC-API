@@ -43,10 +43,29 @@ public class UserController {
 
     // --- Endpoints para Perfil de Usuario ---
 
-    @PutMapping("/api/users/profile")
-    public org.springframework.http.ResponseEntity<String> updateUserProfile() {
-        // TODO: Implement actual update logic integrating with user info
-        return org.springframework.http.ResponseEntity.ok("Profile updated successfully");
+    @PutMapping("/api/users/{id}/profile")
+    public org.springframework.http.ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody User updatedData) {
+        try {
+            User user = userService.findById(id);
+            if (user != null) {
+                user.setName(updatedData.getName());
+                user.setFirstName(updatedData.getFirstName());
+                if (updatedData.getSecondName() != null) user.setSecondName(updatedData.getSecondName());
+                user.setGender(updatedData.getGender());
+                user.setPhone(updatedData.getPhone());
+                user.setAddress(updatedData.getAddress());
+                user.setPostCode(updatedData.getPostCode());
+                user.setCountry(updatedData.getCountry());
+                // Not updating NIF, Email or Password through this basic profile endpoint
+                
+                userService.saveUser(user);
+                return org.springframework.http.ResponseEntity.ok(user);
+            }
+            return org.springframework.http.ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("Error actualizando perfil para usuario {}: {}", id, e.getMessage(), e);
+            return org.springframework.http.ResponseEntity.internalServerError().body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Error interno"));
+        }
     }
 
     @PutMapping("/api/users/security/2fa")
