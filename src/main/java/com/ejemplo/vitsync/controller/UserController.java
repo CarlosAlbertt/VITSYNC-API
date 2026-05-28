@@ -44,19 +44,24 @@ public class UserController {
     // --- Endpoints para Perfil de Usuario ---
 
     @PutMapping("/api/users/{id}/profile")
-    public org.springframework.http.ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody User updatedData) {
+    public org.springframework.http.ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody java.util.Map<String, Object> payload) {
         try {
             User user = userService.findById(id);
             if (user != null) {
-                user.setName(updatedData.getName());
-                user.setFirstName(updatedData.getFirstName());
-                if (updatedData.getSecondName() != null) user.setSecondName(updatedData.getSecondName());
-                user.setGender(updatedData.getGender());
-                user.setPhone(updatedData.getPhone());
-                user.setAddress(updatedData.getAddress());
-                user.setPostCode(updatedData.getPostCode());
-                user.setCountry(updatedData.getCountry());
-                // Not updating NIF, Email or Password through this basic profile endpoint
+                if (payload.containsKey("name") && payload.get("name") != null && !((String)payload.get("name")).isBlank()) user.setName((String) payload.get("name"));
+                if (payload.containsKey("firstName") && payload.get("firstName") != null && !((String)payload.get("firstName")).isBlank()) user.setFirstName((String) payload.get("firstName"));
+                if (payload.containsKey("secondName") && payload.get("secondName") != null && !((String)payload.get("secondName")).isBlank()) user.setSecondName((String) payload.get("secondName"));
+                
+                if (payload.containsKey("gender") && payload.get("gender") != null) {
+                    try {
+                        user.setGender(com.ejemplo.vitsync.enums.Gender.valueOf(payload.get("gender").toString()));
+                    } catch (Exception ignored) {}
+                }
+                
+                if (payload.containsKey("phone") && payload.get("phone") != null && !((String)payload.get("phone")).isBlank()) user.setPhone((String) payload.get("phone"));
+                if (payload.containsKey("address") && payload.get("address") != null && !((String)payload.get("address")).isBlank()) user.setAddress((String) payload.get("address"));
+                if (payload.containsKey("postCode") && payload.get("postCode") != null && !((String)payload.get("postCode")).isBlank()) user.setPostCode((String) payload.get("postCode"));
+                if (payload.containsKey("country") && payload.get("country") != null && !((String)payload.get("country")).isBlank()) user.setCountry((String) payload.get("country"));
                 
                 userService.saveUser(user);
                 return org.springframework.http.ResponseEntity.ok(user);
