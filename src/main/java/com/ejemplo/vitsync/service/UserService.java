@@ -34,6 +34,11 @@ public class UserService implements IUserService{ //SERVICIO PARA EL MANEJO DE F
     }
 
     @Override
+    public int updateAvatar(Long id, String avatarUrl) {
+        return userRepository.updateAvatarUrl(id, avatarUrl);
+    }
+
+    @Override
     public void deleteUser(User id){
         userRepository.delete(id);
     }

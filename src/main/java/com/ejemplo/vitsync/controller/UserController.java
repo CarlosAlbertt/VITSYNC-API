@@ -72,8 +72,7 @@ public class UserController {
         try {
             User user = userService.findById(id);
             if(user != null) {
-                user.setAvatarUrl(payload.get("avatarUrl"));
-                userService.saveUser(user);
+                userService.updateAvatar(id, payload.get("avatarUrl"));
                 return org.springframework.http.ResponseEntity.ok().build();
             }
             return org.springframework.http.ResponseEntity.notFound().build();

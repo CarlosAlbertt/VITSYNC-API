@@ -13,5 +13,7 @@ public interface IUserService { //INTERFAZ QUE DEFINE LAS FUNCIONALIDADES DEL SE
 
     void saveUser(User user);
 
+    int updateAvatar(Long id, String avatarUrl);
+
     void deleteUser(User id);
 }
