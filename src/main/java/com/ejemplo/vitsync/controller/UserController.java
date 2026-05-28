@@ -78,7 +78,9 @@ public class UserController {
             }
             return org.springframework.http.ResponseEntity.notFound().build();
         } catch (Exception e) {
-            return org.springframework.http.ResponseEntity.badRequest().build();
+            logger.error("Error actualizando avatar para usuario {}: {}", id, e.getMessage(), e);
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Error desconocido"));
         }
     }
 }
