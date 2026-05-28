@@ -4,6 +4,7 @@ import com.ejemplo.vitsync.model.Informe;
 import com.ejemplo.vitsync.service.InformeService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,12 @@ public class InformeController {
 
     public InformeController(InformeService informeService) {
         this.informeService = informeService;
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<List<Informe>> getMisInformes() {
+        String nif = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(informeService.getInformesByNif(nif));
     }
 
     @GetMapping

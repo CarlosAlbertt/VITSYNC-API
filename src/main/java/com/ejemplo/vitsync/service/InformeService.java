@@ -28,4 +28,8 @@ public class InformeService {
             informeRepository.save(informe);
         }
     }
+
+    public List<Informe> getInformesByNif(String nif) {
+        return informeRepository.findByPaciente_Nif(nif);
+    }
 }

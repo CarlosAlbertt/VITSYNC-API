@@ -10,6 +10,7 @@ import java.util.List;
 import com.ejemplo.vitsync.dto.CitaRequest;
 import com.ejemplo.vitsync.model.Medico;
 import com.ejemplo.vitsync.service.EmailService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.time.LocalDateTime;
 
 /**
@@ -31,6 +32,12 @@ public class CitaController {
     public CitaController(CitaService citaService, EmailService emailService) {
         this.citaService = citaService;
         this.emailService = emailService;
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<List<Cita>> getMisCitas() {
+        String nif = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(citaService.getCitasByNif(nif));
     }
 
     @GetMapping

@@ -32,4 +32,8 @@ public class CitaService {
     public Cita saveCita(Cita cita) {
         return citaRepository.save(cita);
     }
+
+    public List<Cita> getCitasByNif(String nif) {
+        return citaRepository.findByPaciente_Nif(nif);
+    }
 }
