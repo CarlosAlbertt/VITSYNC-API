@@ -5,16 +5,20 @@ import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RefreshRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
 import com.ejemplo.vitsync.dto.VerifyRequest;
+import com.ejemplo.vitsync.exception.BusinessException;
 import com.ejemplo.vitsync.service.AuthService;
 import com.ejemplo.vitsync.util.JwtUtil;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -39,12 +43,57 @@ public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
+    /** Cookie name carrying the opaque refresh token (httpOnly). */
+    private static final String REFRESH_COOKIE = "refresh_token";
+
+    /** Refresh cookie lifetime: must match the token's 7-day server TTL. */
+    private static final Duration REFRESH_COOKIE_TTL = Duration.ofDays(7);
+
     private final AuthService authService;
     private final JwtUtil jwtUtil;
 
     public AuthController(AuthService authService, JwtUtil jwtUtil) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
+    }
+
+    /**
+     * Builds the httpOnly refresh-token cookie.
+     *
+     * <p>{@code SameSite=None; Secure} is required because the SPA (Vercel)
+     * and the API (Render) live on different sites: {@code Strict}/{@code Lax}
+     * would silently drop the cookie on every cross-site XHR. Browsers treat
+     * {@code localhost} as trustworthy, so {@code Secure} also works in dev.
+     * Path is restricted to the auth endpoints so the token never travels
+     * with regular API calls.</p>
+     */
+    private ResponseCookie buildRefreshCookie(String value, Duration maxAge) {
+        return ResponseCookie.from(REFRESH_COOKIE, value == null ? "" : value)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/api/auth")
+                .maxAge(maxAge)
+                .build();
+    }
+
+    /**
+     * Resolves the refresh token: httpOnly cookie first (web client),
+     * JSON body as fallback (legacy clients; scheduled for removal once the
+     * SPA migration is complete).
+     *
+     * @throws BusinessException if neither source provides a usable token
+     */
+    private String resolveRefreshToken(String cookieToken, RefreshRequest body) {
+        String token = (cookieToken != null && !cookieToken.isBlank())
+                ? cookieToken
+                : (body != null ? body.getRefreshToken() : null);
+        // Tope de longitud: el token real son 43 chars base64url; esto solo
+        // corta payloads abusivos antes de tocar la BD
+        if (token == null || token.isBlank() || token.length() > 128) {
+            throw new BusinessException("Refresh token requerido");
+        }
+        return token;
     }
 
     /**
@@ -60,7 +109,13 @@ public class AuthController {
         logger.info("Intento de login para usuario: {}", request.getNif());
         AuthResponse response = authService.login(request);
         logger.info("Login exitoso para usuario: {}", request.getNif());
-        return ResponseEntity.ok(response);
+        // El refresh token viaja TAMBIÉN como cookie httpOnly: el frontend web
+        // no debe tocarlo desde JS. El campo del body queda como legado y se
+        // eliminará cuando la SPA complete la migración.
+        ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(response);
     }
 
     /**
@@ -93,25 +148,49 @@ public class AuthController {
 
     /**
      * Exchanges a refresh token for a fresh access token (with rotation).
+     * The token is read from the httpOnly cookie when present, falling back
+     * to the JSON body for legacy clients.
      *
-     * @param request the refresh token issued at login or a previous refresh
-     * @return 200 with new token pair; 400 if the token is invalid/revoked
+     * @param cookieToken refresh token from the httpOnly cookie (preferred)
+     * @param request     legacy body fallback (optional)
+     * @return 200 with new access token (+ rotated cookie); 400 if invalid/revoked
      */
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
-        return ResponseEntity.ok(authService.refresh(request.getRefreshToken()));
+    public ResponseEntity<AuthResponse> refresh(
+            @CookieValue(value = REFRESH_COOKIE, required = false) String cookieToken,
+            @RequestBody(required = false) RefreshRequest request) {
+        AuthResponse response = authService.refresh(resolveRefreshToken(cookieToken, request));
+        // Rotación: la cookie se renueva con el nuevo token en cada refresh
+        ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(response);
     }
 
     /**
-     * Revokes the presented refresh token (single-device logout). Idempotent.
+     * Revokes the presented refresh token (single-device logout) and clears
+     * the refresh cookie. Idempotent.
      *
-     * @param request the refresh token to revoke
+     * @param cookieToken refresh token from the httpOnly cookie (preferred)
+     * @param request     legacy body fallback (optional)
      * @return 200 always (no token-validity oracle)
      */
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(@Valid @RequestBody RefreshRequest request) {
-        authService.logout(request.getRefreshToken());
-        return ResponseEntity.ok(Map.of("message", "Sesión cerrada"));
+    public ResponseEntity<Map<String, String>> logout(
+            @CookieValue(value = REFRESH_COOKIE, required = false) String cookieToken,
+            @RequestBody(required = false) RefreshRequest request) {
+        // Logout idempotente: si no llega ningún token, solo limpiamos cookie
+        String token = (cookieToken != null && !cookieToken.isBlank())
+                ? cookieToken
+                : (request != null ? request.getRefreshToken() : null);
+        if (token != null && !token.isBlank() && token.length() <= 128) {
+            authService.logout(token);
+        }
+        // Max-Age=0 borra la cookie en el navegador
+        ResponseCookie cleared = buildRefreshCookie("", Duration.ZERO);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleared.toString())
+                .body(Map.of("message", "Sesión cerrada"));
     }
 
     /**
