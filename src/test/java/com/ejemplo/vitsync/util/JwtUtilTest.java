@@ -119,8 +119,12 @@ class JwtUtilTest {
     @DisplayName("Tampered signature → false")
     void validateToken_withTamperedToken_returnsFalse() {
         String token = jwtUtil.generateToken("12345678A", "PACIENTE");
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.endsWith("A") ? "B" : "A");
+        // Se altera un carácter CENTRAL de la firma: en el último carácter
+        // base64url los bits sobrantes se descartan al decodificar y el
+        // cambio podía producir los mismos bytes (test no determinista)
+        int mid = token.lastIndexOf('.') + 1 + (token.length() - token.lastIndexOf('.')) / 2;
+        char flipped = token.charAt(mid) == 'A' ? 'B' : 'A';
+        String tampered = token.substring(0, mid) + flipped + token.substring(mid + 1);
         assertFalse(jwtUtil.validateToken(tampered, "12345678A"));
     }
 }

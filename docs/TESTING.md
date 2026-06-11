@@ -11,6 +11,7 @@
 - [Tipos de Tests](#-tipos-de-tests)
 - [Estructura de Tests](#-estructura-de-tests)
 - [Cómo Ejecutar los Tests](#-cómo-ejecutar-los-tests)
+- [Cobertura con JaCoCo](#-cobertura-con-jacoco)
 - [Guía: Crear un Nuevo Test](#-guía-crear-un-nuevo-test)
 - [Tests Existentes](#-tests-existentes)
 - [Buenas Prácticas](#-buenas-prácticas)
@@ -187,17 +188,32 @@ spring.jpa.hibernate.ddl-auto=create-drop
 ```
 src/test/
 ├── java/com/ejemplo/vitsync/
-│   ├── ApplicationTests.java             ← Verifica que Spring arranca sin errores
-│   ├── util/
-│   │   └── JwtUtilTest.java              ← 10 tests: generación y validación JWT
-│   ├── service/
-│   │   └── AuthServiceTest.java          ← 10 tests: login, registro, verificación
+│   ├── ApplicationTests.java                  ← Verifica que Spring arranca sin errores
+│   ├── audit/
+│   │   └── AuditAspectTest.java               ← Audit log AOP (success/failure)
+│   ├── converter/
+│   │   └── SensitiveDataConverterTest.java    ← Cifrado AES-256-GCM round-trip
+│   ├── exception/
+│   │   └── GlobalExceptionHandlerTest.java    ← Respuestas HTTP de error
+│   ├── integration/
+│   │   ├── AuthControllerIntegrationTest.java ← Login/registro/rate limit (HTTP real)
+│   │   └── SecurityGdprIntegrationTest.java   ← Refresh, logout, validate, RBAC, IDOR, GDPR
 │   ├── model/
-│   │   └── EntityModelTest.java          ← 8 tests: entidades, herencia, relaciones
-│   └── exception/
-│       └── GlobalExceptionHandlerTest.java ← 3 tests: respuestas HTTP de error
+│   │   └── EntityModelTest.java               ← Entidades, herencia, relaciones
+│   ├── service/
+│   │   ├── AuthServiceTest.java               ← Login, registro, verificación
+│   │   ├── AdminMedicoEspecialidadServiceTest.java
+│   │   ├── GdprServiceTest.java               ← Acceso, exportación, anonimización
+│   │   ├── PacienteMedicoServiceTest.java
+│   │   ├── RefreshTokenServiceTest.java       ← Emisión, rotación, revocación
+│   │   └── SimpleServicesTest.java            ← User/Cita/Informe/Chat
+│   ├── util/
+│   │   ├── HtmlSanitizerTest.java             ← Anti-XSS
+│   │   └── JwtUtilTest.java                   ← Generación y validación JWT RS256
+│   └── validation/
+│       └── NifValidatorTest.java              ← Dígito de control NIF/NIE
 └── resources/
-    └── application.properties             ← Configuración para tests (H2, JWT test)
+    └── application.properties                 ← Configuración para tests (H2, claves de test)
 ```
 
 ---
@@ -242,6 +258,37 @@ src/test/
                   │              └─ Assertions que fallaron
                   └─ Total de tests ejecutados
 ```
+
+---
+
+## 📈 Cobertura con JaCoCo
+
+La cobertura mide **qué porcentaje del código ejecutan los tests**. Está configurada con el plugin JaCoCo en `pom.xml`.
+
+### Generar y ver el reporte
+
+```bash
+# Ejecuta todos los tests + genera el reporte + comprueba el umbral
+./mvnw verify
+
+# El reporte HTML queda en:
+target/site/jacoco/index.html
+```
+
+Abre ese archivo en el navegador: muestra la cobertura por paquete → clase → método → línea (verde = cubierto, rojo = sin cubrir).
+
+### Umbral obligatorio (quality gate)
+
+El build **falla** si la cobertura de líneas baja del **80%** en estos paquetes:
+
+| Paquete | Por qué se exige |
+|---|---|
+| `com.ejemplo.vitsync.service` | Toda la lógica de negocio (auth, GDPR, tokens) |
+| `com.ejemplo.vitsync.util` | Criptografía y sanitización (JWT, anti-XSS) |
+
+**Exclusión documentada:** `EmailService` queda fuera del cómputo — son plantillas HTML + llamadas HTTP al API externo de Resend, sin lógica unit-testeable significativa.
+
+Si `./mvnw verify` falla con `Coverage checks have not been met`, abre el reporte HTML, localiza las líneas rojas del paquete afectado y añade tests que las ejerciten.
 
 ---
 

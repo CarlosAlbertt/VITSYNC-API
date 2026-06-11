@@ -54,3 +54,25 @@
 **4.3 Upload seguro**: `FileUploadController` con Apache Tika (MIME real por contenido), allow-list jpeg/png/webp, límite 2MB avatar, nombres UUID, anti path-traversal, directorio externo `vitsync.upload.dir`. `WebConfig` sirve desde ese directorio; `/uploads/**` y `/api/upload/**` exigen autenticación.
 
 **Nota:** paginar TODOS los listados rompería el contrato del frontend; se paginaron los listados admin (grandes) y se documentó. Los catálogos públicos (medicos/especialidades/hospitales) son pequeños y se dejaron como List.
+
+## Fase 5 — Documentación ✅ (2026-06-11)
+
+**Qué se hizo:** documentación de arquitectura y cumplimiento en `docs/`: `SECURITY.md` (modelo de amenazas y controles), `ENCRYPTION.md` (AES-256-GCM, gestión de claves), `GDPR_COMPLIANCE.md` (mapeo Arts. RGPD → implementación), `GDPR_PROCEDURES.md` (proceso de olvido/anonimización), `DATA_FLOWS.md` (flujos de datos sensibles), `API_REFERENCE.md` (endpoints con ejemplos). Javadoc en inglés y comentarios inline en español aplicados durante las Fases 2-4 al reescribir cada clase.
+
+**Pendiente para Fase 6:** suite de tests completa (los existentes estaban rotos por la migración HS256→RS256).
+
+## Fase 6 — Testing completo ✅ (2026-06-11)
+
+**6.1 Unitarios** (sin Spring, Mockito): `JwtUtilTest` (RS256, claims, expirado/manipulado), `SensitiveDataConverterTest` (round-trip, null-safe, IV aleatorio, Unicode), `NifValidatorTest` (dígito control NIF/NIE), `AuthServiceTest` (login/registro/verificación), `AuditAspectTest` (success/failure), `HtmlSanitizerTest` (anti-XSS), `SimpleServicesTest` (User/Cita/Informe/Chat), `AdminMedicoEspecialidadServiceTest`, `GdprServiceTest` (acceso Art. 15, export ZIP Art. 20, borrado/anonimización Art. 17, pseudónimo determinista), `RefreshTokenServiceTest` (emisión con hash, rotación, replay, caducidad, purga), `PacienteMedicoServiceTest` (asignación y lookups).
+
+**6.2 Integración** (`@SpringBootTest` + H2 + MockMvc): `AuthControllerIntegrationTest` (login 400/401, register 201/400 NIF, rate limit 429 con Retry-After) y `SecurityGdprIntegrationTest` (refresh 200 + replay rechazado, logout revoca, validate 401/200, `/api/usuarios` 403 PACIENTE / 200 ADMIN, IDOR 403 en `/VitSync-app/{id}`, respuesta propia sin password/verificationCode, `/my-data` 200 propio / 403 ajeno, `/gdpr-delete` 202 + cuenta suspendida).
+
+**6.3 Cobertura:** JaCoCo con gate al 80% LINE en `service/` y `util/` (falla el build si baja). Resultado: **service 91% / util 96%, 158 tests verdes**. Reporte en `target/site/jacoco/index.html`; cómo verlo documentado en `docs/TESTING.md`.
+
+**Decisiones:**
+- `EmailService` excluido del cómputo JaCoCo (plantillas HTML + HTTP a Resend, no unit-testeable de forma significativa) — comentado en `pom.xml`.
+- Surefire fuerza `spring.config.location=classpath:` en tests: el `application.properties` de la raíz (file:./, con `${DATABASE_URL}` sin resolver) tenía mayor precedencia y rompía el contexto de los `@SpringBootTest` (bug pre-existente).
+- Cada test de integración usa una IP `X-Forwarded-For` única para aislar los buckets del rate limit.
+- En `SecurityGdprIntegrationTest` se mockea `EmailService` (`@MockBean`): el borrado GDPR dispara emails y los tests no deben llamar al API externo.
+
+**Pendientes conocidos (fuera del plan de fases):** rotar credenciales del historial git (incidente abierto, AUDITORIA_INICIAL §1.1.1), DPIA (Art. 35), contratos de encargo (Art. 28), job de anonimización a 30 días, 2FA, PDF en export.
