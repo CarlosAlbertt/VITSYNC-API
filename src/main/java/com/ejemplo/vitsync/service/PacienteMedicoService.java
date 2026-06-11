@@ -1,5 +1,7 @@
 package com.ejemplo.vitsync.service;
 
+import com.ejemplo.vitsync.audit.Auditable;
+import com.ejemplo.vitsync.enums.AuditAction;
 import com.ejemplo.vitsync.model.Medico;
 import com.ejemplo.vitsync.model.Paciente;
 import com.ejemplo.vitsync.model.PacienteMedico;
@@ -51,6 +53,7 @@ public class PacienteMedicoService {
                 .collect(Collectors.toList());
     }
 
+    @Auditable(action = AuditAction.VIEW_PATIENT_DATA, targetIdIndex = 0)
     public List<Paciente> getPacientesDeMedico(Long medicoId) {
         Medico medico = medicoRepository.findById(medicoId)
                 .orElseThrow(() -> new RuntimeException("Médico no encontrado con id " + medicoId));

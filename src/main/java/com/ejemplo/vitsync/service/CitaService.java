@@ -1,5 +1,7 @@
 package com.ejemplo.vitsync.service;
 
+import com.ejemplo.vitsync.audit.Auditable;
+import com.ejemplo.vitsync.enums.AuditAction;
 import com.ejemplo.vitsync.model.Cita;
 import com.ejemplo.vitsync.repository.CitaRepository;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ public class CitaService {
         return citaRepository.findById(id).orElse(null);
     }
 
+    @Auditable(action = AuditAction.CANCEL_APPOINTMENT, targetIdIndex = 0)
     public void cancelCita(Long id) {
         Cita cita = getCitaById(id);
         if (cita != null) {
@@ -29,6 +32,7 @@ public class CitaService {
         }
     }
 
+    @Auditable(action = AuditAction.CREATE_APPOINTMENT)
     public Cita saveCita(Cita cita) {
         return citaRepository.save(cita);
     }

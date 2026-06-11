@@ -300,40 +300,54 @@ Backend responde: AuthResponse { token: "eyJ...", role: "PACIENTE", ... }
 
 ## 🔐 Seguridad y Autenticación
 
-### Flujo de autenticación
+### Flujo de autenticación (RS256 + refresh tokens)
 
 ```
 1. Usuario envía POST /api/auth/login { nif, password }
         │
-2. AuthService verifica NIF existe + password coincide (BCrypt)
+2. AuthService verifica credenciales (BCrypt) + cuenta verificada
         │
-3. JwtUtil genera token firmado con HS256 (contiene: nif, role, expiración)
+3. Se emiten DOS tokens:
+   ├── Access token  → JWT firmado con RS256 (clave privada RSA), expira en 15 min
+   └── Refresh token → opaco, 7 días, almacenado HASHEADO en BD (revocable)
         │
-4. Frontend almacena el token en localStorage
+4. Frontend guarda:
+   ├── Access token  → SOLO en memoria JS (variable, nunca localStorage)
+   └── Refresh token → SOLO en cookie httpOnly (ver advertencia abajo)
         │
-5. Cada petición posterior incluye: Authorization: Bearer <token>
+5. Cada petición incluye: Authorization: Bearer <access token>
         │
-6. JwtAuthenticationFilter intercepta la petición:
-   ├── Extrae el token del header
-   ├── Valida firma + expiración
-   ├── Extrae NIF y rol
-   └── Establece SecurityContext → Spring sabe quién eres
+6. Cuando el access token caduca (15 min):
+   POST /api/auth/refresh { refreshToken } → nuevo par de tokens
+   (el refresh token usado se revoca: rotación)
         │
-7. SecurityConfig decide si puedes acceder a la ruta según tu rol
+7. Logout:
+   ├── POST /api/auth/logout      → revoca ese refresh token
+   └── POST /api/auth/logout-all  → revoca TODAS las sesiones del usuario
 ```
+
+> ⚠️ **OBLIGATORIO para el frontend**: el refresh token DEBE almacenarse en
+> una **cookie httpOnly** (`Set-Cookie: ...; HttpOnly; Secure; SameSite=Strict`),
+> **NUNCA en localStorage ni sessionStorage**. localStorage es legible por
+> cualquier script de la página: un solo XSS robaría una sesión de 7 días con
+> acceso a datos sanitarios. El access token puede vivir en memoria JS porque
+> caduca en 15 minutos y no es revocable.
 
 ### ¿Qué es JWT?
 
 **JSON Web Token** = Un string de 3 partes separadas por puntos:
 
 ```
-eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiUEFDSUVOVEUiLCJzdWIiOiIxMjM0NTY3OEEiLCJpYXQiOjE3MTU5...
-|___ Header (algo=HS256) |___ Payload (role, nif, exp)                                    |___ Firma
+eyJhbGciOiJSUzI1NiJ9.eyJyb2xlIjoiUEFDSUVOVEUiLCJzdWIiOiIxMjM0NTY3OEEiLCJpYXQiOjE3MTU5...
+|___ Header (alg=RS256) |___ Payload (role, nif, exp)                                    |___ Firma
 ```
 
-- **Header**: Algoritmo de firma (HS256)
+- **Header**: Algoritmo de firma (**RS256**: RSA asimétrico — la clave privada firma, la pública verifica)
 - **Payload**: Datos del usuario (NIF, rol, fecha expiración)
-- **Firma**: Garantiza que nadie ha manipulado el token (usa un secreto del servidor)
+- **Firma**: Garantiza que nadie ha manipulado el token. Con RS256, quien verifica tokens no puede falsificarlos (a diferencia de HS256, donde el mismo secreto firma y verifica)
+
+Las claves se configuran con las variables de entorno `JWT_PRIVATE_KEY` y
+`JWT_PUBLIC_KEY` (base64 DER). Generación: `bash scripts/setup-env.sh --generate-keys`.
 
 ### BCrypt — Hashing de contraseñas
 

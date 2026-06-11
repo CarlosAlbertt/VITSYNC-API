@@ -1,5 +1,6 @@
 package com.ejemplo.vitsync.model;
 
+import com.ejemplo.vitsync.converter.SensitiveDataConverter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -52,7 +53,11 @@ public class Informe {
     @Column(name = "archivo_url")
     private String archivoUrl;
 
-    /** Notas personales del paciente sobre el informe */
+    /**
+     * Notas personales/clínicas sobre el informe.
+     * Dato clínico (Art. 9 RGPD): cifrado en reposo con AES-256-GCM.
+     */
+    @Convert(converter = SensitiveDataConverter.class)
     @Column(name = "notas_personales", columnDefinition = "TEXT")
     private String notasPersonales;
 

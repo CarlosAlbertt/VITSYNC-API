@@ -61,6 +61,12 @@ protected void doFilterInternal(HttpServletRequest request,
             // Verificar que el usuario existe
             userRepository.findByNif(nif).ifPresent(user -> {
 
+                // Rechazar cuentas no verificadas o suspendidas: un token
+                // emitido antes de la suspensión no debe seguir siendo válido
+                if (!user.isVerified() || Boolean.TRUE.equals(user.getSuspended())) {
+                    return;
+                }
+
                 // Validar el token
                 if (jwtUtil.validateToken(jwt, nif)) {
 

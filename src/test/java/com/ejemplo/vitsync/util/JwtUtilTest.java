@@ -1,7 +1,5 @@
 package com.ejemplo.vitsync.util;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,136 +8,119 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests unitarios para JwtUtil.
- *
- * Verifica la generación, extracción de claims y validación de tokens JWT.
- * No necesita Spring Context — es un test unitario puro.
+ * Unit tests for {@link JwtUtil} (RS256). No Spring context required: the RSA
+ * key pair is injected via reflection and {@code initKeys()} is invoked
+ * manually.
  */
-@DisplayName("JwtUtil — Generación y Validación de Tokens")
+@DisplayName("JwtUtil — RS256 token generation and validation")
 class JwtUtilTest {
+
+    // Par de claves RSA de TEST (mismas que src/test/resources/application.properties)
+    private static final String TEST_PRIVATE_KEY = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC5CyMwHrNNmL5Wl8LF44EIg6/CcrBeb4Yk0u/Kua145ElZWTJLaE2e5YCOmr3idlOEtDxl06X6S6urNp3Mf+wGOtxbngXXWjhzUjaW3rOjVUfGbqTSAAfc0EedQXghGn3FG/sH92pxcwEZ6xV37M7cM/5oWqz95Bmn5XFHx5RV3mj6parnf+l172jGFLInWjpAJW8pNQEkypzd1FbCTp++EJet/tXsP/URSrUMZ+WSyewN0E8qXQulA0sYGhp8l3VLL8NwgvR/7IGbJoWkN4PuhjlA7yZuOolGpE8y7geMBWSakEAKu2LSfN1Gt5b0gmSpJYlea0bS9BClrk8IPy3JAgMBAAECggEALzqHfaWoT/rXQdS0MrvRWDH8Lx4Eo+XFECsCZvSjMQLbMcHRU2vIu/CJslwOcPmQcYNrEvZFG7AqnaVv+xz/ScvGKGAZz5BIbi6injkzElIW4q+kw7CcUSCb1qg6GADh7ugoVy0v7srSkiHtNdGsLonauhnCo36PicnG8vIeixes0XZgId78c9sjO71i+vOw8TYqIvIRt33S99U27zo8mbh9k5eUrt15H/z2QSMhDkm6iOQFHBWVmLTmFDNaPSEP+AcD4mg2Dh1o4jQkX4It14G7BAG23drMeiMQQSUm5oOfNAc0Bv9zypG/jHWxq5+Y5ZhRDIwEKFWKfg3a3YPlnQKBgQDn+2LZokxUKIyHvwlgpBZeUVKvaaM0HCVn/ImehB9j7L7SbT6FmeycwjZhrESn+Fo8evfaSwxKJjFchHtLSeMKhULZHGCaR1n4g0kMicXtoCTZHTyFrEdn+sLfb+FCTWW+m3MyokCP2ULVvpvlkGk/m/EgDgDH2UBxLVjXI6gdWwKBgQDMM6k2H7QTXmFwYzbdQPxjZTfMyUETB0ZjNloeo6LU+K5zW1U5KK3q72i2Jl9K/QgjPH0OtmkzwUuu7F13ohJa7ney45FB/SM1vCjazEJlz4rbumQWMkZ5TH/0ohuxF/TKzzgcLIolsc6ioBJLPkbGa5moIFP09ANRDjTa//VWqwKBgQDbqtXd06uHfaYk3KcalgaAZW1woQ1jyMs6/o2qRt4alxHS3JN5m1nMzrMEJkYU8D0yTBbq5GnMxQG049aEYoDVc37ra82mCa6OfnLrpoKAE0cROHgY9BvhwDhLr/uT9wpDRZv99FpCXK7HC+k/plGjZB0eB2SB2Z0GDrSzdBY7RQKBgGmqvgAk7bEsIK3gmU5qx2/Du9k7t3HaTOEgCgha0vLz8In/FB2s4Dp3Qq8nMh6Cy0g4j9oiKFRAzSIqa79xXaAyUDyAp/UGwcaXpGh8VEuM1yUW0Z3uzCsOnBQCIuREKkccbcOehKo21V+wB2dqRYN9wJiQigFyl5jFCjLdSp5bAoGAMdNNpRGFP/6lqu7215sK0TyFWU8bk1ztVDxjC0twROitutlrPmPWzsM6pMXm6Gnj0age3IxaLTNC9YoIWfukLwU9kxCrtLR+XnH2ycYGt0BW+pehpuo+zRaNqXohOijYQ8safOUcwbzJgmL1inW9N4A0zdj4MEZ5O9BjvE5cXxI=";
+    private static final String TEST_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuQsjMB6zTZi+VpfCxeOBCIOvwnKwXm+GJNLvyrmteORJWVkyS2hNnuWAjpq94nZThLQ8ZdOl+kurqzadzH/sBjrcW54F11o4c1I2lt6zo1VHxm6k0gAH3NBHnUF4IRp9xRv7B/dqcXMBGesVd+zO3DP+aFqs/eQZp+VxR8eUVd5o+qWq53/pde9oxhSyJ1o6QCVvKTUBJMqc3dRWwk6fvhCXrf7V7D/1EUq1DGflksnsDdBPKl0LpQNLGBoafJd1Sy/DcIL0f+yBmyaFpDeD7oY5QO8mbjqJRqRPMu4HjAVkmpBACrti0nzdRreW9IJkqSWJXmtG0vQQpa5PCD8tyQIDAQAB";
 
     private JwtUtil jwtUtil;
 
-    // Secret de test (debe tener al menos 64 caracteres para HS256)
-    private static final String TEST_SECRET = "testsecretkeymustbelongenoughforhs256algorithmtestsecretkeymustbelongenoughforhs256algorithm";
-    private static final long EXPIRATION_TIME = 86400000L; // 24 horas
-
     @BeforeEach
     void setUp() {
-        jwtUtil = new JwtUtil();
-        // Inyectar valores directamente sin levantar Spring
-        ReflectionTestUtils.setField(jwtUtil, "secretKey", TEST_SECRET);
-        ReflectionTestUtils.setField(jwtUtil, "expirationTime", EXPIRATION_TIME);
+        jwtUtil = newJwtUtil(900000L);
     }
 
-    // ─── Generación de Token ─────────────────────────────────────────
+    private JwtUtil newJwtUtil(long expirationMs) {
+        JwtUtil util = new JwtUtil();
+        ReflectionTestUtils.setField(util, "privateKeyBase64", TEST_PRIVATE_KEY);
+        ReflectionTestUtils.setField(util, "publicKeyBase64", TEST_PUBLIC_KEY);
+        ReflectionTestUtils.setField(util, "accessExpirationMs", expirationMs);
+        ReflectionTestUtils.invokeMethod(util, "initKeys");
+        return util;
+    }
 
     @Test
-    @DisplayName("Genera un token JWT no nulo y no vacío")
+    @DisplayName("Generates a non-empty 3-part JWT")
     void generateToken_returnsNonEmptyString() {
         String token = jwtUtil.generateToken("12345678A", "PACIENTE");
 
-        assertNotNull(token, "El token no debería ser null");
-        assertFalse(token.isEmpty(), "El token no debería estar vacío");
-        assertTrue(token.split("\\.").length == 3, "El token debe tener 3 partes (header.payload.signature)");
+        assertNotNull(token);
+        assertFalse(token.isEmpty());
+        assertEquals(3, token.split("\\.").length);
     }
 
     @Test
-    @DisplayName("El token generado contiene el NIF como subject")
+    @DisplayName("Uses RS256 in the header, not HS256")
+    void generateToken_usesRs256() {
+        String token = jwtUtil.generateToken("12345678A", "PACIENTE");
+        String headerJson = new String(java.util.Base64.getUrlDecoder()
+                .decode(token.split("\\.")[0]));
+        assertTrue(headerJson.contains("RS256"), "El header debe declarar alg RS256");
+        assertFalse(headerJson.contains("HS256"));
+    }
+
+    @Test
+    @DisplayName("Stores the NIF as subject")
     void generateToken_containsNifAsSubject() {
         String nif = "12345678A";
         String token = jwtUtil.generateToken(nif, "PACIENTE");
-
-        String extractedNif = jwtUtil.extractNif(token);
-        assertEquals(nif, extractedNif, "El NIF extraído debe coincidir con el original");
+        assertEquals(nif, jwtUtil.extractNif(token));
     }
 
     @Test
-    @DisplayName("El token generado contiene el rol en los claims")
+    @DisplayName("Stores the role claim")
     void generateToken_containsRole() {
         String token = jwtUtil.generateToken("12345678A", "ADMIN");
-
-        String role = jwtUtil.extractRole(token);
-        assertEquals("ADMIN", role, "El rol extraído debe ser ADMIN");
+        assertEquals("ADMIN", jwtUtil.extractRole(token));
     }
 
-    // ─── Extracción de Claims ────────────────────────────────────────
-
     @Test
-    @DisplayName("Extrae correctamente la fecha de expiración")
+    @DisplayName("Extracts a future expiration date")
     void extractExpiration_returnsValidDate() {
         String token = jwtUtil.generateToken("12345678A", "PACIENTE");
-
-        assertNotNull(jwtUtil.extractExpiration(token), "La fecha de expiración no debería ser null");
-        assertTrue(jwtUtil.extractExpiration(token).getTime() > System.currentTimeMillis(),
-                "La expiración debe ser en el futuro");
+        assertNotNull(jwtUtil.extractExpiration(token));
+        assertTrue(jwtUtil.extractExpiration(token).getTime() > System.currentTimeMillis());
     }
 
     @Test
-    @DisplayName("Distingue correctamente entre roles PACIENTE, MEDICO y ADMIN")
+    @DisplayName("Distinguishes PACIENTE/MEDICO/ADMIN roles")
     void extractRole_distinguishesRoles() {
-        String tokenPaciente = jwtUtil.generateToken("11111111A", "PACIENTE");
-        String tokenMedico = jwtUtil.generateToken("22222222B", "MEDICO");
-        String tokenAdmin = jwtUtil.generateToken("33333333C", "ADMIN");
-
-        assertEquals("PACIENTE", jwtUtil.extractRole(tokenPaciente));
-        assertEquals("MEDICO", jwtUtil.extractRole(tokenMedico));
-        assertEquals("ADMIN", jwtUtil.extractRole(tokenAdmin));
+        assertEquals("PACIENTE", jwtUtil.extractRole(jwtUtil.generateToken("11111111H", "PACIENTE")));
+        assertEquals("MEDICO", jwtUtil.extractRole(jwtUtil.generateToken("22222222J", "MEDICO")));
+        assertEquals("ADMIN", jwtUtil.extractRole(jwtUtil.generateToken("33333333P", "ADMIN")));
     }
 
-    // ─── Validación ─────────────────────────────────────────────────
-
     @Test
-    @DisplayName("Valida un token con NIF correcto")
+    @DisplayName("Valid token with matching NIF → true")
     void validateToken_withCorrectNif_returnsTrue() {
         String nif = "12345678A";
         String token = jwtUtil.generateToken(nif, "PACIENTE");
-
-        assertTrue(jwtUtil.validateToken(token, nif), "Token con NIF correcto debe ser válido");
+        assertTrue(jwtUtil.validateToken(token, nif));
     }
 
     @Test
-    @DisplayName("Rechaza un token con NIF incorrecto")
+    @DisplayName("Token with wrong NIF → false")
     void validateToken_withWrongNif_returnsFalse() {
         String token = jwtUtil.generateToken("12345678A", "PACIENTE");
-
-        assertFalse(jwtUtil.validateToken(token, "99999999Z"),
-                "Token con NIF incorrecto debe ser inválido");
+        assertFalse(jwtUtil.validateToken(token, "99999999R"));
     }
 
     @Test
-    @DisplayName("Rechaza un token expirado")
-    void validateToken_withExpiredToken_throwsException() {
-        // Crear JwtUtil con expiración de 0ms (token expira al instante)
-        JwtUtil expiredJwtUtil = new JwtUtil();
-        ReflectionTestUtils.setField(expiredJwtUtil, "secretKey", TEST_SECRET);
-        ReflectionTestUtils.setField(expiredJwtUtil, "expirationTime", 0L);
-
-        String token = expiredJwtUtil.generateToken("12345678A", "PACIENTE");
-
-        // Un token expirado debe lanzar excepción al intentar parsearlo
-        assertThrows(ExpiredJwtException.class,
-                () -> expiredJwtUtil.validateToken(token, "12345678A"),
-                "Debe lanzar ExpiredJwtException para tokens expirados");
+    @DisplayName("Expired token → false (no exception leaked)")
+    void validateToken_withExpiredToken_returnsFalse() {
+        JwtUtil expired = newJwtUtil(0L);
+        String token = expired.generateToken("12345678A", "PACIENTE");
+        assertFalse(expired.validateToken(token, "12345678A"));
     }
 
     @Test
-    @DisplayName("Rechaza un token con formato inválido")
-    void validateToken_withMalformedToken_throwsException() {
-        assertThrows(MalformedJwtException.class,
-                () -> jwtUtil.extractNif("esto.no.es.un.jwt"),
-                "Debe lanzar MalformedJwtException para tokens inválidos");
+    @DisplayName("Malformed token → false")
+    void validateToken_withMalformedToken_returnsFalse() {
+        assertFalse(jwtUtil.validateToken("esto.no.es.un.jwt", "12345678A"));
     }
 
     @Test
-    @DisplayName("Rechaza un token manipulado (firma alterada)")
-    void validateToken_withTamperedToken_throwsException() {
+    @DisplayName("Tampered signature → false")
+    void validateToken_withTamperedToken_returnsFalse() {
         String token = jwtUtil.generateToken("12345678A", "PACIENTE");
-        // Alterar el último carácter de la firma
-        String tampered = token.substring(0, token.length() - 1) + (token.endsWith("A") ? "B" : "A");
-
-        assertThrows(Exception.class,
-                () -> jwtUtil.validateToken(tampered, "12345678A"),
-                "Debe lanzar excepción para tokens con firma alterada");
+        String tampered = token.substring(0, token.length() - 1)
+                + (token.endsWith("A") ? "B" : "A");
+        assertFalse(jwtUtil.validateToken(tampered, "12345678A"));
     }
 }

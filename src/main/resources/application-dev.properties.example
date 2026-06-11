@@ -2,8 +2,9 @@
 # PLANTILLA DE CONFIGURACIÓN DE DESARROLLO LOCAL
 # ==============================================================
 # Copia este archivo como: application-dev.properties
-# Y rellena con tus credenciales de testing.
-# Activar con: mvn spring-boot:run -Dspring.profiles.active=dev
+# Y rellena con tus credenciales de testing (NUNCA las de producción).
+# Activar con: mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# application-dev.properties está en .gitignore: no se versiona.
 # ==============================================================
 
 # Base de Datos de Testing
@@ -18,10 +19,28 @@ spring.jpa.properties.hibernate.format_sql=true
 # CORS: Localhost
 app.cors.allowed-origins=http://localhost:5173,http://localhost:8080
 
-# JWT
-jwt.secret=<TU_JWT_SECRET>
-jwt.expiration=86400000
+# JWT RS256 — claves RSA en base64 DER (privada PKCS#8, pública X.509).
+# Generar par de claves de desarrollo:
+#   bash scripts/setup-env.sh --generate-keys
+jwt.private-key=<BASE64_PKCS8_PRIVATE_KEY>
+jwt.public-key=<BASE64_X509_PUBLIC_KEY>
+# Access token: 15 minutos / Refresh token: 7 días
+jwt.access-expiration=900000
+jwt.refresh-expiration=604800000
 
-# Email: Resend API
+# Cifrado en reposo AES-256-GCM. Generar clave de desarrollo:
+#   openssl rand -base64 32
+vitsync.encryption.key=<BASE64_32_BYTES>
+
+# Email: Resend API (clave de testing)
 resend.api.key=<TU_RESEND_API_KEY>
 vitsync.email.from=VitSync <no-reply@vitsync.es>
+
+# Subida de ficheros (directorio local fuera del repo)
+vitsync.upload.dir=${user.home}/vitsync-uploads
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=12MB
+
+# Actuator: en local se puede ampliar sin riesgo
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=always

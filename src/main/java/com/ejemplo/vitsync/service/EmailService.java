@@ -102,6 +102,50 @@ public class EmailService {
         sendHtmlEmail(destinatary, subject, htmlContent);
     }
 
+    /**
+     * Notifies the user that an account-deletion (GDPR Art. 17) request was
+     * received and gives the scheduled execution date (after the waiting
+     * period). Contains no clinical data.
+     *
+     * @param destinatary   user email
+     * @param scheduledDate ISO date when anonymisation will run
+     */
+    public void sendDeletionRequestEmail(String destinatary, String scheduledDate) {
+        String subject = "VitSync - Solicitud de eliminación de cuenta";
+        String htmlContent = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>Solicitud de eliminación recibida</h2>
+                    <p>Hemos registrado tu solicitud de eliminación de cuenta conforme al
+                    derecho de supresión (Art. 17 RGPD).</p>
+                    <p>Tu cuenta ha quedado suspendida y se anonimizará el <strong>%s</strong>.
+                    Si no reconoces esta solicitud, contacta con soporte de inmediato para
+                    cancelarla antes de esa fecha.</p>
+                    <p>Por obligación legal, ciertos registros de auditoría se conservarán de
+                    forma disociada de tu identidad.</p>
+                </div>
+                """.formatted(scheduledDate);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
+
+    /**
+     * Notifies a clinician that a future appointment was cancelled because the
+     * patient exercised their right to erasure.
+     *
+     * @param destinatary clinician email
+     * @param fecha       appointment date reference
+     */
+    public void sendAppointmentCancelledByErasureEmail(String destinatary, String fecha) {
+        String subject = "VitSync - Cita cancelada";
+        String htmlContent = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>Cita cancelada</h2>
+                    <p>Una cita futura (%s) ha sido cancelada por una solicitud de
+                    eliminación de datos del paciente.</p>
+                </div>
+                """.formatted(fecha);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
+
     public void sendCitaConfirmationEmail(String destinatary, String pacienteNombre, String doctorNombre, String fecha, String hora, String hospital) {
         String subject = "Confirmación de tu Cita en VitSync";
 

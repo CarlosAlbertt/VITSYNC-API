@@ -2,42 +2,62 @@ package com.ejemplo.vitsync.dto;
 
 import com.ejemplo.vitsync.enums.Gender;
 import com.ejemplo.vitsync.enums.Role;
+import com.ejemplo.vitsync.validation.ValidNif;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
+/**
+ * Request body for {@code POST /api/auth/register}.
+ *
+ * <p>Validation hardened for the health-data context (audit input-validation
+ * findings): NIF control-letter check, 12-char strong password, Spanish phone
+ * format, length caps to block oversized payloads.</p>
+ *
+ * @author VitSync Team
+ * @version 2.0
+ * @since 1.0
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class RegisterRequest {
 
     @NotBlank(message = "El nombre es obligatorio")
-    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]+$", message = "El nombre solo puede contener letras")
+    @Size(max = 100, message = "El nombre no puede superar 100 caracteres")
+    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s-]+$", message = "El nombre solo puede contener letras, espacios y guiones")
     private String name;
 
     @NotBlank(message = "El primer apellido es obligatorio")
-    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]+$", message = "El primer apellido solo puede contener letras")
+    @Size(max = 100, message = "El primer apellido no puede superar 100 caracteres")
+    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s-]+$", message = "El primer apellido solo puede contener letras, espacios y guiones")
     private String firstName;
 
     @NotBlank(message = "El segundo apellido es obligatorio")
-    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]+$", message = "El segundo apellido solo puede contener letras")
+    @Size(max = 100, message = "El segundo apellido no puede superar 100 caracteres")
+    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s-]+$", message = "El segundo apellido solo puede contener letras, espacios y guiones")
     private String secondName;
 
-    @NotBlank(message = "El NIF/CIF es obligatorio")
-    @Pattern(regexp = "^[XYZ]?\\d{5,8}[A-Z]$|^[A-HJ-NP-SV-W]\\d{7}[0-9A-J]$", message = "El formato del documento no es un NIF, NIE ni CIF válido")
+    @NotBlank(message = "El NIF es obligatorio")
+    @ValidNif
     private String nif;
 
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email debe ser válido")
+    @Size(max = 254, message = "El email no puede superar 254 caracteres")
     private String email;
 
+    // Política sanitaria: ≥12 caracteres con mayúscula, minúscula, número y especial
     @NotBlank(message = "La contraseña es obligatoria")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$", message = "La contraseña debe tener al menos 8 caracteres, conteniendo letras y números")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{12,}$",
+            message = "La contraseña debe tener al menos 12 caracteres, con mayúscula, minúscula, número y carácter especial")
     private String password;
 
     @NotNull(message = "El género es obligatorio")
@@ -50,10 +70,11 @@ public class RegisterRequest {
     private LocalDate birthDate;
 
     @NotBlank(message = "El teléfono es obligatorio")
-    @Pattern(regexp = "^\\+?[\\d\\s-]{9,15}$", message = "El formato del teléfono es inválido")
+    @Pattern(regexp = "^(\\+34|0034|34)?[6789]\\d{8}$", message = "El teléfono debe ser un número español válido")
     private String phone;
 
     @NotBlank(message = "La dirección es obligatoria")
+    @Size(max = 200, message = "La dirección no puede superar 200 caracteres")
     private String address;
 
     @NotBlank(message = "El código postal es obligatorio")
@@ -61,5 +82,6 @@ public class RegisterRequest {
     private String postCode;
 
     @NotBlank(message = "El país es obligatorio")
+    @Size(max = 100, message = "El país no puede superar 100 caracteres")
     private String country;
 }

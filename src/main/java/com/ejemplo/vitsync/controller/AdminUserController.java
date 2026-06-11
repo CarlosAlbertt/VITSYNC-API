@@ -7,13 +7,26 @@ import com.ejemplo.vitsync.service.AdminUserService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+/**
+ * Admin-only user management ({@code /api/usuarios}, ADMIN role enforced in
+ * {@code SecurityConfig}).
+ *
+ * <p>Listings are paginated ({@link Pageable}) to avoid loading the whole
+ * users table (audit finding V19). Error handling is delegated to
+ * {@code GlobalExceptionHandler}: {@code ResourceNotFoundException} → 404,
+ * {@code DataIntegrityViolationException} → 409, validation → 400.</p>
+ *
+ * @author VitSync Team
+ * @version 2.0
+ * @since 1.0
+ */
 @RestController
 @RequestMapping("/api/usuarios")
 public class AdminUserController {
@@ -28,86 +41,90 @@ public class AdminUserController {
 
     // ==================== ENDPOINTS GET ====================
 
-    // GET /api/usuarios – Listar todos los usuarios
+    /**
+     * Lists users, paginated.
+     *
+     * @param pageable page request (e.g. {@code ?page=0&size=20&sort=id})
+     * @return page of users as response DTOs
+     */
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        logger.info("Obteniendo todos los usuarios");
-        List<UserResponse> users = adminUserService.findAll()
-                .stream()
-                .map(UserResponse::fromEntity)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(users);
+    public ResponseEntity<Page<UserResponse>> getAllUsers(Pageable pageable) {
+        logger.info("Listando usuarios (página {})", pageable.getPageNumber());
+        return ResponseEntity.ok(adminUserService.findAll(pageable).map(UserResponse::fromEntity));
     }
 
-    // GET /api/usuarios/{id} – Obtener usuario por ID
+    /**
+     * Returns a single user by id.
+     *
+     * @param id user id
+     * @return the user, or 404
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) {
-        logger.info("Buscando usuario con ID: {}", id);
+    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
         return adminUserService.findById(id)
                 .map(u -> ResponseEntity.ok(UserResponse.fromEntity(u)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET /api/usuarios/rol/{rol} – Filtrar por rol (ADMIN, MEDICO, PACIENTE)
+    /**
+     * Lists users with a given role, paginated.
+     *
+     * @param rol      role name (ADMIN/MEDICO/PACIENTE)
+     * @param pageable page request
+     * @return page of users, or 400 if the role is invalid
+     */
     @GetMapping("/rol/{rol}")
-    public ResponseEntity<?> getUsersByRole(@PathVariable String rol) {
-        logger.info("Filtrando usuarios por rol: {}", rol);
+    public ResponseEntity<?> getUsersByRole(@PathVariable String rol, Pageable pageable) {
         try {
             Role role = Role.valueOf(rol.toUpperCase());
-            List<UserResponse> users = adminUserService.findByRole(role)
-                    .stream()
-                    .map(UserResponse::fromEntity)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(users);
+            return ResponseEntity.ok(
+                    adminUserService.findByRole(role, pageable).map(UserResponse::fromEntity));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Rol no válido: " + rol + ". Valores permitidos: ADMIN, MEDICO, PACIENTE"));
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Rol no válido. Valores permitidos: ADMIN, MEDICO, PACIENTE"));
         }
     }
 
-    // ==================== ENDPOINTS DE ESCRITURA (ADMIN CRUD) ====================
+    // ==================== ESCRITURA (ADMIN CRUD) ====================
 
-    // PUT /api/usuarios/{id} – Actualizar datos de usuario
+    /**
+     * Updates a user. Uniqueness and not-found are handled globally.
+     *
+     * @param id      user id
+     * @param request validated update payload
+     * @return the updated user
+     */
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id,
-                                         @Valid @RequestBody UserUpdateRequest request) {
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id,
+                                                   @Valid @RequestBody UserUpdateRequest request) {
         logger.info("Actualizando usuario con ID: {}", id);
-        try {
-            UserResponse response = UserResponse.fromEntity(adminUserService.update(id, request));
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            logger.warn("Error al actualizar usuario {}: {}", id, e.getMessage());
-            String msg = e.getMessage();
-            if (msg != null && msg.contains("no encontrado")) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.badRequest().body(Map.of("error", msg));
-        }
+        return ResponseEntity.ok(UserResponse.fromEntity(adminUserService.update(id, request)));
     }
 
-    // DELETE /api/usuarios/{id} – Eliminar usuario
+    /**
+     * Deletes a user.
+     *
+     * @param id user id
+     * @return 204 No Content
+     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         logger.info("Eliminando usuario con ID: {}", id);
-        try {
-            adminUserService.delete(id);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            logger.warn("Error al eliminar usuario {}: {}", id, e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        adminUserService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
-    // PATCH /api/usuarios/{id}/verificar – Marcar usuario como verificado/no verificado
+    /**
+     * Marks a user as verified/unverified without the email flow.
+     *
+     * @param id       user id
+     * @param verified target verification state
+     * @return the updated user
+     */
     @PatchMapping("/{id}/verificar")
-    public ResponseEntity<?> setVerified(@PathVariable Long id,
-                                          @RequestParam boolean verified) {
+    public ResponseEntity<UserResponse> setVerified(@PathVariable Long id,
+                                                    @RequestParam boolean verified) {
         logger.info("Marcando usuario {} como verificado: {}", id, verified);
-        try {
-            UserResponse response = UserResponse.fromEntity(adminUserService.setVerified(id, verified));
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            logger.warn("Error al verificar usuario {}: {}", id, e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(UserResponse.fromEntity(adminUserService.setVerified(id, verified)));
     }
 }

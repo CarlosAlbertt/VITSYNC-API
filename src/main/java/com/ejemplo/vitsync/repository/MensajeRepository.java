@@ -16,4 +16,7 @@ public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
 
     // Contar mensajes no leídos
     long countByRecipientIdAndSenderIdAndLeidoFalse(Long recipientId, Long senderId);
+
+    // Todos los mensajes en los que participa un usuario (export/olvido RGPD)
+    List<Mensaje> findBySenderIdOrRecipientId(Long senderId, Long recipientId);
 }

@@ -1,10 +1,12 @@
 package com.ejemplo.vitsync.service;
 
+import com.ejemplo.vitsync.audit.AuditService;
 import com.ejemplo.vitsync.dto.AuthResponse;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
 import com.ejemplo.vitsync.enums.Gender;
 import com.ejemplo.vitsync.enums.Role;
+import com.ejemplo.vitsync.exception.BusinessException;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.UserRepository;
 import com.ejemplo.vitsync.util.JwtUtil;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
@@ -26,36 +29,25 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests unitarios para AuthService.
+ * Unit tests for {@link AuthService}, isolating business logic with Mockito.
  *
- * Usa Mockito para aislar la lógica de negocio de las dependencias
- * (UserRepository, JwtUtil, PasswordEncoder, EmailService).
- *
- * Estructura:
- * - Login: credenciales correctas, NIF inexistente, contraseña incorrecta, cuenta no verificada
- * - Registro: registro exitoso, NIF duplicado, email duplicado
- * - Verificación: código correcto, código incorrecto, email inexistente
+ * <p>Reflects the v2 behaviour: login throws {@link BadCredentialsException}
+ * with a single generic message (no user enumeration); unverified account
+ * throws {@link BusinessException}; registration returns NO token; the
+ * verification code is compared in constant time.</p>
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AuthService — Autenticación y Registro")
+@DisplayName("AuthService — authentication and registration")
 class AuthServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private JwtUtil jwtUtil;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private EmailService emailService;
+    @Mock private RefreshTokenService refreshTokenService;
+    @Mock private AuditService auditService;
 
-    @Mock
-    private JwtUtil jwtUtil;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
-
-    @Mock
-    private EmailService emailService;
-
-    @InjectMocks
-    private AuthService authService;
-
-    // ─── Datos de prueba reutilizables ──────────────────────────────────
+    @InjectMocks private AuthService authService;
 
     private User testUser;
     private LoginRequest loginRequest;
@@ -67,7 +59,7 @@ class AuthServiceTest {
         testUser.setId(1L);
         testUser.setNif("12345678A");
         testUser.setEmail("test@vitsync.es");
-        testUser.setPassword("$2a$10$hashedPasswordHere"); // BCrypt hash simulado
+        testUser.setPassword("$2a$10$hashedPasswordHere");
         testUser.setName("Test");
         testUser.setFirstName("Usuario");
         testUser.setSecondName("Prueba");
@@ -79,6 +71,7 @@ class AuthServiceTest {
         testUser.setPostCode("46001");
         testUser.setCountry("España");
         testUser.setVerified(true);
+        testUser.setSuspended(false);
         testUser.setVerificationCode(null);
 
         loginRequest = new LoginRequest();
@@ -91,7 +84,7 @@ class AuthServiceTest {
         registerRequest.setSecondName("Test");
         registerRequest.setNif("87654321B");
         registerRequest.setEmail("nuevo@vitsync.es");
-        registerRequest.setPassword("Password123");
+        registerRequest.setPassword("Password123!Abc");
         registerRequest.setGender(Gender.MUJER);
         registerRequest.setRole(Role.PACIENTE);
         registerRequest.setBirthDate(LocalDate.of(1995, 6, 20));
@@ -101,134 +94,131 @@ class AuthServiceTest {
         registerRequest.setCountry("España");
     }
 
-    // ─── LOGIN ──────────────────────────────────────────────────────────
-
     @Nested
     @DisplayName("Login")
     class LoginTests {
 
         @Test
-        @DisplayName("Login exitoso con credenciales válidas")
+        @DisplayName("Valid credentials return access + refresh tokens")
         void login_withValidCredentials_returnsAuthResponse() {
             when(userRepository.findByNif("12345678A")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("Password123", testUser.getPassword())).thenReturn(true);
             when(jwtUtil.generateToken("12345678A", "PACIENTE")).thenReturn("jwt.token.here");
+            when(refreshTokenService.create(testUser)).thenReturn("refresh-token");
 
             AuthResponse response = authService.login(loginRequest);
 
             assertNotNull(response);
             assertEquals("jwt.token.here", response.getToken());
+            assertEquals("refresh-token", response.getRefreshToken());
             assertEquals("12345678A", response.getNif());
             assertEquals(Role.PACIENTE, response.getRole());
-            assertEquals("Login exitoso", response.getMessage());
 
-            verify(userRepository).findByNif("12345678A");
-            verify(passwordEncoder).matches("Password123", testUser.getPassword());
             verify(jwtUtil).generateToken("12345678A", "PACIENTE");
+            verify(refreshTokenService).create(testUser);
         }
 
         @Test
-        @DisplayName("Login falla con NIF inexistente")
-        void login_withUnknownNif_throwsException() {
-            when(userRepository.findByNif("99999999Z")).thenReturn(Optional.empty());
-            loginRequest.setNif("99999999Z");
+        @DisplayName("Unknown NIF throws BadCredentialsException (generic message)")
+        void login_withUnknownNif_throwsBadCredentials() {
+            when(userRepository.findByNif("99999999R")).thenReturn(Optional.empty());
+            loginRequest.setNif("99999999R");
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
+            BadCredentialsException ex = assertThrows(BadCredentialsException.class,
                     () -> authService.login(loginRequest));
 
-            assertEquals("Usuario no encontrado", ex.getMessage());
+            assertEquals("Credenciales inválidas", ex.getMessage());
             verify(passwordEncoder, never()).matches(anyString(), anyString());
         }
 
         @Test
-        @DisplayName("Login falla con contraseña incorrecta")
-        void login_withWrongPassword_throwsException() {
+        @DisplayName("Wrong password throws BadCredentialsException (generic message)")
+        void login_withWrongPassword_throwsBadCredentials() {
             when(userRepository.findByNif("12345678A")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("WrongPass123", testUser.getPassword())).thenReturn(false);
             loginRequest.setPassword("WrongPass123");
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
+            BadCredentialsException ex = assertThrows(BadCredentialsException.class,
                     () -> authService.login(loginRequest));
 
-            assertEquals("Contraseña incorrecta", ex.getMessage());
+            assertEquals("Credenciales inválidas", ex.getMessage());
             verify(jwtUtil, never()).generateToken(anyString(), anyString());
         }
 
         @Test
-        @DisplayName("Login falla con cuenta no verificada")
-        void login_withUnverifiedAccount_throwsException() {
+        @DisplayName("Unverified account throws BusinessException")
+        void login_withUnverifiedAccount_throwsBusiness() {
             testUser.setVerified(false);
             when(userRepository.findByNif("12345678A")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("Password123", testUser.getPassword())).thenReturn(true);
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
+            BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.login(loginRequest));
 
             assertTrue(ex.getMessage().contains("no verificada"));
             verify(jwtUtil, never()).generateToken(anyString(), anyString());
         }
+
+        @Test
+        @DisplayName("Failed login is audited as LOGIN_FAILURE")
+        void login_failure_isAudited() {
+            when(userRepository.findByNif("12345678A")).thenReturn(Optional.empty());
+            assertThrows(BadCredentialsException.class, () -> authService.login(loginRequest));
+            verify(auditService).record(eq(com.ejemplo.vitsync.enums.AuditAction.LOGIN_FAILURE),
+                    anyString(), eq(false), anyString());
+        }
     }
 
-    // ─── REGISTRO ───────────────────────────────────────────────────────
-
     @Nested
-    @DisplayName("Registro")
+    @DisplayName("Registration")
     class RegisterTests {
 
         @Test
-        @DisplayName("Registro exitoso de nuevo paciente")
+        @DisplayName("Valid data saves a hashed user, sends email, returns NO token")
         void register_withValidData_createsUserAndSendsEmail() {
             when(userRepository.existsByNif("87654321B")).thenReturn(false);
             when(userRepository.existsByEmail("nuevo@vitsync.es")).thenReturn(false);
-            when(passwordEncoder.encode("Password123")).thenReturn("$2a$10$encodedHash");
-            when(jwtUtil.generateToken(eq("87654321B"), eq("PACIENTE"))).thenReturn("new.jwt.token");
+            when(passwordEncoder.encode("Password123!Abc")).thenReturn("$2a$10$encodedHash");
 
             AuthResponse response = authService.register(registerRequest);
 
             assertNotNull(response);
-            assertEquals("new.jwt.token", response.getToken());
-            assertEquals("Usuario registrado exitosamente", response.getMessage());
+            assertNull(response.getToken(), "El registro no debe emitir access token");
+            assertNull(response.getRefreshToken());
 
-            // Verificar que se guardó el usuario y se envió email
-            verify(userRepository).save(any(User.class));
+            // El password se guarda hasheado, nunca en claro
+            verify(passwordEncoder).encode("Password123!Abc");
+            verify(userRepository).save(argThat(u -> "$2a$10$encodedHash".equals(u.getPassword())));
             verify(emailService).sendVerificationEmail(eq("nuevo@vitsync.es"), anyString());
         }
 
         @Test
-        @DisplayName("Registro falla con NIF duplicado")
-        void register_withDuplicateNif_throwsException() {
+        @DisplayName("Duplicate NIF throws BusinessException")
+        void register_withDuplicateNif_throws() {
             when(userRepository.existsByNif("87654321B")).thenReturn(true);
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
-                    () -> authService.register(registerRequest));
-
-            assertTrue(ex.getMessage().contains("ya está en uso"));
+            assertThrows(BusinessException.class, () -> authService.register(registerRequest));
             verify(userRepository, never()).save(any());
             verify(emailService, never()).sendVerificationEmail(anyString(), anyString());
         }
 
         @Test
-        @DisplayName("Registro falla con email duplicado")
-        void register_withDuplicateEmail_throwsException() {
+        @DisplayName("Duplicate email throws BusinessException")
+        void register_withDuplicateEmail_throws() {
             when(userRepository.existsByNif("87654321B")).thenReturn(false);
             when(userRepository.existsByEmail("nuevo@vitsync.es")).thenReturn(true);
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
-                    () -> authService.register(registerRequest));
-
-            assertTrue(ex.getMessage().contains("email ya está registrado"));
+            assertThrows(BusinessException.class, () -> authService.register(registerRequest));
             verify(userRepository, never()).save(any());
         }
     }
 
-    // ─── VERIFICACIÓN ───────────────────────────────────────────────────
-
     @Nested
-    @DisplayName("Verificación de cuenta")
+    @DisplayName("Account verification")
     class VerifyAccountTests {
 
         @Test
-        @DisplayName("Verificación exitosa con código correcto")
+        @DisplayName("Correct code verifies the user")
         void verifyAccount_withCorrectCode_verifiesUser() {
             testUser.setVerified(false);
             testUser.setVerificationCode("123456");
@@ -236,34 +226,32 @@ class AuthServiceTest {
 
             assertDoesNotThrow(() -> authService.verifyAccount("test@vitsync.es", "123456"));
 
-            assertTrue(testUser.isVerified(), "El usuario debe estar verificado");
-            assertNull(testUser.getVerificationCode(), "El código debe ser null tras verificar");
+            assertTrue(testUser.isVerified());
+            assertNull(testUser.getVerificationCode());
             verify(userRepository).save(testUser);
             verify(emailService).sendWelcomeEmail("test@vitsync.es");
         }
 
         @Test
-        @DisplayName("Verificación falla con código incorrecto")
-        void verifyAccount_withWrongCode_throwsException() {
+        @DisplayName("Wrong code throws BusinessException (generic message)")
+        void verifyAccount_withWrongCode_throws() {
             testUser.setVerificationCode("123456");
             when(userRepository.findByEmail("test@vitsync.es")).thenReturn(Optional.of(testUser));
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
+            BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.verifyAccount("test@vitsync.es", "999999"));
 
-            assertEquals("Código de verificación incorrecto", ex.getMessage());
+            assertEquals("Código o email incorrectos", ex.getMessage());
             verify(userRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("Verificación falla con email inexistente")
-        void verifyAccount_withUnknownEmail_throwsException() {
+        @DisplayName("Unknown email throws BusinessException")
+        void verifyAccount_withUnknownEmail_throws() {
             when(userRepository.findByEmail("fake@vitsync.es")).thenReturn(Optional.empty());
 
-            RuntimeException ex = assertThrows(RuntimeException.class,
+            assertThrows(BusinessException.class,
                     () -> authService.verifyAccount("fake@vitsync.es", "123456"));
-
-            assertEquals("El email no está registrado", ex.getMessage());
         }
     }
 }

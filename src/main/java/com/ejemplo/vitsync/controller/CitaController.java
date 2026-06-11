@@ -26,6 +26,8 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/citas")
 public class CitaController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CitaController.class);
+
     private final CitaService citaService;
     private final EmailService emailService;
 
@@ -71,20 +73,20 @@ public class CitaController {
             cita.setTipo(request.getSpecialty() != null ? request.getSpecialty() : "General");
             
             Cita savedCita = citaService.saveCita(cita);
-            
-            // Enviar email simulado (idealmente sacado del contexto de seguridad)
-            String pacienteNombre = "Paciente";
-            String emailDestino = "paciente@ejemplo.com"; // En un caso real: usuarioService.getLogueado().getEmail()
+
+            // Email de confirmación. No se filtra el resultado interno al cliente.
             String docName = request.getDoctor() != null ? (String) request.getDoctor().get("name") : "Cualquier Profesional";
             String hospitalName = request.getLocation() != null ? (String) request.getLocation().get("name") : "VitSync Centro Médico";
             String fecha = request.getDate() != null ? request.getDate().substring(0, 10) : "";
-            
-            emailService.sendCitaConfirmationEmail(emailDestino, pacienteNombre, docName, fecha, request.getTime(), hospitalName);
-            
+            String emailDestino = SecurityContextHolder.getContext().getAuthentication().getName();
+
+            emailService.sendCitaConfirmationEmail(emailDestino, "Paciente", docName, fecha, request.getTime(), hospitalName);
+
             return ResponseEntity.ok(savedCita);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return ResponseEntity.internalServerError().body("Error al guardar cita: " + ex.getMessage());
+        } catch (IllegalArgumentException ex) {
+            // Datos de cita malformados (fecha/hora/id) → 400, sin filtrar detalle interno
+            logger.warn("Datos de cita inválidos: {}", ex.getMessage());
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Datos de la cita inválidos"));
         }
     }
 }

@@ -4,10 +4,11 @@ import com.ejemplo.vitsync.enums.Gender;
 import com.ejemplo.vitsync.enums.Role;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Data // GENERA GETTERS, SETTER, TOSTRING , EQUALS Y HASHCODE de forma automatica
 @AllArgsConstructor // GENERA CONSTRUCTOR CON TODOS LOS ATRIBUTOS
@@ -40,7 +41,10 @@ public class User {
     @Column(unique = true)
     private String email;
 
+    // WRITE_ONLY: el hash se acepta al deserializar pero NUNCA se serializa
+    // en respuestas JSON (fuga crítica V01 de la auditoría)
     @NotBlank
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @Enumerated(EnumType.STRING) // INDICA QUE ES UN ENUMERADO Y SE ALMACENA COMO CADENA DE TEXTO
@@ -67,7 +71,9 @@ public class User {
     @NotBlank
     private String country;
 
-    // Campos para verificación de correo electrónico
+    // Campos para verificación de correo electrónico.
+    // @JsonIgnore: el código nunca debe salir en respuestas (V01)
+    @JsonIgnore
     @Column(name = "verification_code")
     private String verificationCode;
 

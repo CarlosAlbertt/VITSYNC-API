@@ -1,10 +1,14 @@
 package com.ejemplo.vitsync.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+import java.util.Arrays;
 
 /**
  * Clase de configuración para WebSocket con STOMP.
@@ -18,19 +22,41 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+
+    /** Orígenes permitidos para el handshake WebSocket (mismos que CORS HTTP). */
+    @Value("${app.cors.allowed-origins:}")
+    private String allowedOrigins;
+
+    public WebSocketConfig(WebSocketAuthInterceptor webSocketAuthInterceptor) {
+        this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+    }
+
     /**
      * Paso 1: Registrar el endpoint de conexión.
      * Aquí es donde el frontend inicia el "handshake" (apretón de manos) inicial.
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // "/ws" será la URL de conexión (ej: http://localhost:8080/ws)
+        // Restringimos los orígenes en vez de "*": el chat transporta datos
+        // clínicos y allowCredentials con "*" sería inseguro (V08/V20)
+        String[] origins = (allowedOrigins == null || allowedOrigins.isBlank())
+                ? new String[]{"https://vitsync.es", "https://www.vitsync.es"}
+                : Arrays.stream(allowedOrigins.split(",")).map(String::trim).toArray(String[]::new);
+
         registry.addEndpoint("/ws")
-                // Permite conexiones desde cualquier origen (útil si frontend y backend están
-                // en puertos distintos)
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(origins)
                 // Habilita SockJS como fallback si el navegador no soporta WebSocket nativo
                 .withSockJS();
+    }
+
+    /**
+     * Paso 0: Autenticar cada conexión STOMP entrante con el interceptor JWT,
+     * de modo que el chat deje de ser anónimo (V08).
+     */
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(webSocketAuthInterceptor);
     }
 
     /**

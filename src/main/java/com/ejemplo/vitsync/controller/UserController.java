@@ -1,109 +1,149 @@
 package com.ejemplo.vitsync.controller;
 
+import com.ejemplo.vitsync.config.SecurityUtils;
+import com.ejemplo.vitsync.dto.ProfileUpdateRequest;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.service.IUserService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
+/**
+ * Self-service user endpoints (profile, avatar).
+ *
+ * <p>All routes live under {@code /VitSync-app} and require authentication.
+ * Ownership is enforced with {@link SecurityUtils#requireSelfOrAdmin} so a
+ * user can only read/modify their own record (IDOR prevention, audit finding
+ * V03). The previous {@code POST} endpoint that accepted a raw {@code User}
+ * (privilege-escalation vector V17) and the broken {@code DELETE} have been
+ * removed; user CRUD for admins lives in {@code AdminUserController}.</p>
+ *
+ * @author VitSync Team
+ * @version 2.0
+ * @since 1.0
+ */
 @RestController
 @RequestMapping("/VitSync-app")
-
 public class UserController {
-
-    private final IUserService userService;
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
-    public UserController(IUserService userService) {
+    private final IUserService userService;
+    private final SecurityUtils securityUtils;
+
+    public UserController(IUserService userService, SecurityUtils securityUtils) {
         this.userService = userService;
+        this.securityUtils = securityUtils;
     }
 
+    /**
+     * Lists all users. ADMIN only — exposing the full user base to any
+     * authenticated user violated data minimisation (GDPR Art. 5.1.c).
+     *
+     * @return all users
+     */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<User> findAll() {
         return userService.findAll();
     }
 
+    /**
+     * Returns a single user. Allowed only to the owner or an admin.
+     *
+     * @param id user id from the path
+     * @return the user, or 404 if not found
+     */
     @GetMapping("/{id}")
-    public User findById(@PathVariable Long id) {
-        return userService.findById(id);
+    public ResponseEntity<User> findById(@PathVariable Long id) {
+        securityUtils.requireSelfOrAdmin(id);
+        User user = userService.findById(id);
+        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
     }
 
-    @PostMapping
-    public void saveUser(@RequestBody User user) {
-        userService.saveUser(user);
-    }
-
-    @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable User user) {
-        userService.deleteUser(user);
-    }
-
-    // --- Endpoints para Perfil de Usuario ---
-
+    /**
+     * Updates the caller's own profile (partial update of safe fields).
+     *
+     * @param id      target user id (must be the caller's own, or admin)
+     * @param request validated partial profile
+     * @return the updated user, or 404 if not found
+     */
     @PutMapping("/api/users/{id}/profile")
-    public org.springframework.http.ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody java.util.Map<String, Object> payload) {
-        try {
-            User user = userService.findById(id);
-            if (user != null) {
-                if (payload.containsKey("name") && payload.get("name") != null && !((String)payload.get("name")).isBlank()) user.setName((String) payload.get("name"));
-                if (payload.containsKey("firstName") && payload.get("firstName") != null && !((String)payload.get("firstName")).isBlank()) user.setFirstName((String) payload.get("firstName"));
-                if (payload.containsKey("secondName") && payload.get("secondName") != null && !((String)payload.get("secondName")).isBlank()) user.setSecondName((String) payload.get("secondName"));
-                
-                if (payload.containsKey("gender") && payload.get("gender") != null) {
-                    try {
-                        user.setGender(com.ejemplo.vitsync.enums.Gender.valueOf(payload.get("gender").toString()));
-                    } catch (Exception ignored) {}
-                }
-                
-                if (payload.containsKey("phone") && payload.get("phone") != null && !((String)payload.get("phone")).isBlank()) user.setPhone((String) payload.get("phone"));
-                if (payload.containsKey("address") && payload.get("address") != null && !((String)payload.get("address")).isBlank()) user.setAddress((String) payload.get("address"));
-                if (payload.containsKey("postCode") && payload.get("postCode") != null && !((String)payload.get("postCode")).isBlank()) user.setPostCode((String) payload.get("postCode"));
-                if (payload.containsKey("country") && payload.get("country") != null && !((String)payload.get("country")).isBlank()) user.setCountry((String) payload.get("country"));
-                
-                userService.saveUser(user);
-                return org.springframework.http.ResponseEntity.ok(user);
-            }
-            return org.springframework.http.ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            logger.error("Error actualizando perfil para usuario {}: {}", id, e.getMessage(), e);
-            return org.springframework.http.ResponseEntity.internalServerError().body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Error interno"));
+    public ResponseEntity<User> updateUserProfile(@PathVariable Long id,
+                                                  @Valid @RequestBody ProfileUpdateRequest request) {
+        securityUtils.requireSelfOrAdmin(id);
+
+        User user = userService.findById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
         }
+
+        // Solo se aplican los campos presentes (actualización parcial)
+        if (isPresent(request.getName())) user.setName(request.getName().trim());
+        if (isPresent(request.getFirstName())) user.setFirstName(request.getFirstName().trim());
+        if (isPresent(request.getSecondName())) user.setSecondName(request.getSecondName().trim());
+        if (request.getGender() != null) user.setGender(request.getGender());
+        if (isPresent(request.getPhone())) user.setPhone(request.getPhone().trim());
+        if (isPresent(request.getAddress())) user.setAddress(request.getAddress().trim());
+        if (isPresent(request.getPostCode())) user.setPostCode(request.getPostCode().trim());
+        if (isPresent(request.getCountry())) user.setCountry(request.getCountry().trim());
+
+        userService.saveUser(user);
+        return ResponseEntity.ok(user);
     }
 
-    @PutMapping("/api/users/security/2fa")
-    public org.springframework.http.ResponseEntity<String> toggle2FA() {
-        // TODO: Implement 2FA toggle
-        return org.springframework.http.ResponseEntity.ok("2FA status updated");
-    }
-
-    @PutMapping("/api/users/status")
-    public org.springframework.http.ResponseEntity<String> suspendUserAccount() {
-        // TODO: Implement account suspension logic
-        return org.springframework.http.ResponseEntity.ok("User account suspended");
-    }
-
-    @GetMapping("/api/users/access-history")
-    public org.springframework.http.ResponseEntity<List<Object>> getUserAccessHistory() {
-        // TODO: Implement fetching history from HistorialAccesoService once ready
-        return org.springframework.http.ResponseEntity.ok(List.of());
-    }
-
+    /**
+     * Updates the caller's avatar URL.
+     *
+     * @param id      target user id (must be the caller's own, or admin)
+     * @param payload {@code {"avatarUrl": "..."}}
+     * @return 200 on success, 404 if the user does not exist
+     */
     @PatchMapping("/api/users/{id}/avatar")
-    public org.springframework.http.ResponseEntity<?> updateAvatar(@PathVariable Long id, @RequestBody java.util.Map<String, String> payload) {
-        try {
-            User user = userService.findById(id);
-            if(user != null) {
-                userService.updateAvatar(id, payload.get("avatarUrl"));
-                return org.springframework.http.ResponseEntity.ok().build();
-            }
-            return org.springframework.http.ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            logger.error("Error actualizando avatar para usuario {}: {}", id, e.getMessage(), e);
-            return org.springframework.http.ResponseEntity.badRequest()
-                    .body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Error desconocido"));
+    public ResponseEntity<Void> updateAvatar(@PathVariable Long id,
+                                             @RequestBody @Valid AvatarPayload payload) {
+        securityUtils.requireSelfOrAdmin(id);
+        User user = userService.findById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
         }
+        userService.updateAvatar(id, payload.avatarUrl());
+        return ResponseEntity.ok().build();
+    }
+
+    /** Avatar update body with a bounded URL. */
+    public record AvatarPayload(
+            @NotBlank(message = "avatarUrl es obligatorio")
+            @Size(max = 512, message = "URL demasiado larga")
+            String avatarUrl) {
+    }
+
+    // ─── Endpoints aún sin implementar (devuelven 501 explícito) ──────
+
+    /**
+     * Toggle 2FA — not implemented yet. Returns 501 so the frontend gets a
+     * clear signal instead of a fake 200 (audit finding V21).
+     */
+    @PutMapping("/api/users/security/2fa")
+    public ResponseEntity<Map<String, String>> toggle2FA() {
+        return ResponseEntity.status(501).body(Map.of("message", "2FA no implementado todavía"));
+    }
+
+    /** Account suspension — not implemented yet (returns 501). */
+    @PutMapping("/api/users/status")
+    public ResponseEntity<Map<String, String>> suspendUserAccount() {
+        return ResponseEntity.status(501).body(Map.of("message", "Suspensión no implementada todavía"));
+    }
+
+    private boolean isPresent(String value) {
+        return value != null && !value.isBlank();
     }
 }
