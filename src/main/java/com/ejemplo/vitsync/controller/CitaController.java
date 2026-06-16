@@ -4,6 +4,7 @@ import com.ejemplo.vitsync.model.Cita;
 import com.ejemplo.vitsync.service.CitaService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -48,43 +49,63 @@ public class CitaController {
     }
 
     @PostMapping
-    public ResponseEntity<?> crearCita(@RequestBody CitaRequest request) {
+    public ResponseEntity<?> crearCita(@Valid @RequestBody CitaRequest request) {
         try {
             Cita cita = new Cita();
 
             // Asignar médico mediante referencia JPA (en vez de ID plano)
             if (request.getDoctor() != null && request.getDoctor().get("id") != null) {
                 Object docId = request.getDoctor().get("id");
-                if (!docId.toString().equals("any")) {
-                    Medico medicoRef = new Medico();
-                    medicoRef.setId(Long.parseLong(docId.toString()));
-                    cita.setMedico(medicoRef);
+                if (!"any".equals(docId.toString())) {
+                    try {
+                        Medico medicoRef = new Medico();
+                        medicoRef.setId(Long.parseLong(docId.toString()));
+                        cita.setMedico(medicoRef);
+                    } catch (NumberFormatException e) {
+                        logger.warn("ID de médico no numérico: {}", docId);
+                        return ResponseEntity.badRequest().body(java.util.Map.of("error", "ID de médico inválido"));
+                    }
                 }
             }
 
             // Parse fecha y hora ("2026-05-10T00:00:00.000Z" y "09:30")
             if (request.getDate() != null && request.getTime() != null) {
-                String dateStr = request.getDate().substring(0, 10);
-                LocalDateTime fh = LocalDateTime.parse(dateStr + "T" + request.getTime() + ":00");
-                cita.setFechaHora(fh);
+                try {
+                    String dateStr = request.getDate().length() >= 10
+                            ? request.getDate().substring(0, 10)
+                            : request.getDate();
+                    LocalDateTime fh = LocalDateTime.parse(dateStr + "T" + request.getTime() + ":00");
+                    cita.setFechaHora(fh);
+                } catch (java.time.format.DateTimeParseException | StringIndexOutOfBoundsException e) {
+                    logger.warn("Formato de fecha/hora inválido: {}", e.getMessage());
+                    return ResponseEntity.badRequest().body(java.util.Map.of("error", "Formato de fecha u hora inválido"));
+                }
             }
-            
+
             cita.setEstado("PROGRAMADA");
             cita.setTipo(request.getSpecialty() != null ? request.getSpecialty() : "General");
-            
+
             Cita savedCita = citaService.saveCita(cita);
 
-            // Email de confirmación. No se filtra el resultado interno al cliente.
-            String docName = request.getDoctor() != null ? (String) request.getDoctor().get("name") : "Cualquier Profesional";
-            String hospitalName = request.getLocation() != null ? (String) request.getLocation().get("name") : "VitSync Centro Médico";
-            String fecha = request.getDate() != null ? request.getDate().substring(0, 10) : "";
-            String emailDestino = SecurityContextHolder.getContext().getAuthentication().getName();
+            // Email de confirmación (best-effort)
+            try {
+                String docName = request.getDoctor() != null
+                        ? String.valueOf(request.getDoctor().getOrDefault("name", "Cualquier Profesional"))
+                        : "Cualquier Profesional";
+                String hospitalName = request.getLocation() != null
+                        ? String.valueOf(request.getLocation().getOrDefault("name", "VitSync Centro Médico"))
+                        : "VitSync Centro Médico";
+                String fecha = request.getDate() != null && request.getDate().length() >= 10
+                        ? request.getDate().substring(0, 10) : "";
+                String emailDestino = SecurityContextHolder.getContext().getAuthentication().getName();
 
-            emailService.sendCitaConfirmationEmail(emailDestino, "Paciente", docName, fecha, request.getTime(), hospitalName);
+                emailService.sendCitaConfirmationEmail(emailDestino, "Paciente", docName, fecha, request.getTime(), hospitalName);
+            } catch (Exception emailEx) {
+                logger.warn("No se pudo enviar email de confirmación: {}", emailEx.getMessage());
+            }
 
             return ResponseEntity.ok(savedCita);
         } catch (IllegalArgumentException ex) {
-            // Datos de cita malformados (fecha/hora/id) → 400, sin filtrar detalle interno
             logger.warn("Datos de cita inválidos: {}", ex.getMessage());
             return ResponseEntity.badRequest().body(java.util.Map.of("error", "Datos de la cita inválidos"));
         }
