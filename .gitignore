@@ -52,3 +52,9 @@ uploads/**
 *.key
 *.p12
 *.jks
+
+### Volcados de sesión de herramientas / transcripts (NUNCA versionar) ###
+# Archivos pesados (~400 KB) que son logs de sesiones de Claude Code, no código.
+# Inflan el contexto de las herramientas y pueden agotar la memoria de la sesión.
+contexto_tarea.md
+**/contexto_tarea.md
