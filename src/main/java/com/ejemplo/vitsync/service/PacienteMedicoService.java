@@ -2,6 +2,8 @@ package com.ejemplo.vitsync.service;
 
 import com.ejemplo.vitsync.audit.Auditable;
 import com.ejemplo.vitsync.enums.AuditAction;
+import com.ejemplo.vitsync.exception.BusinessException;
+import com.ejemplo.vitsync.exception.ResourceNotFoundException;
 import com.ejemplo.vitsync.model.Medico;
 import com.ejemplo.vitsync.model.Paciente;
 import com.ejemplo.vitsync.model.PacienteMedico;
@@ -28,14 +30,14 @@ public class PacienteMedicoService {
         this.repository = repository;
     }
 
-    public void asignarMedicoAPaciente(Long pacienteId, Long medicoId) throws Exception {
+    public void asignarMedicoAPaciente(Long pacienteId, Long medicoId) {
         Paciente paciente = pacienteRepository.findById(pacienteId)
-                .orElseThrow(() -> new Exception("Paciente no encontrado con id " + pacienteId));
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con id " + pacienteId));
         Medico medico = medicoRepository.findById(medicoId)
-                .orElseThrow(() -> new Exception("Médico no encontrado con id " + medicoId));
+                .orElseThrow(() -> new ResourceNotFoundException("Médico no encontrado con id " + medicoId));
 
         if (repository.existsByPacienteAndMedico(paciente, medico)) {
-            throw new Exception("Ya existe la relación");
+            throw new BusinessException("Ya existe la relación entre el paciente y el médico");
         }
 
         PacienteMedico relacion = new PacienteMedico();
@@ -46,7 +48,7 @@ public class PacienteMedicoService {
 
     public List<Medico> getMedicosDePaciente(Long pacienteId) {
         Paciente paciente = pacienteRepository.findById(pacienteId)
-                .orElseThrow(() -> new RuntimeException("Paciente no encontrado con id " + pacienteId));
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con id " + pacienteId));
         return repository.findByPaciente(paciente).stream()
                 .map(PacienteMedico::getMedico)
                 .distinct()
@@ -56,7 +58,7 @@ public class PacienteMedicoService {
     @Auditable(action = AuditAction.VIEW_PATIENT_DATA, targetIdIndex = 0)
     public List<Paciente> getPacientesDeMedico(Long medicoId) {
         Medico medico = medicoRepository.findById(medicoId)
-                .orElseThrow(() -> new RuntimeException("Médico no encontrado con id " + medicoId));
+                .orElseThrow(() -> new ResourceNotFoundException("Médico no encontrado con id " + medicoId));
         return repository.findByMedico(medico).stream()
                 .map(PacienteMedico::getPaciente)
                 .distinct()
