@@ -35,7 +35,12 @@ public class MedicoController {
         List<MedicoResponse> medicos = medicoService.findAllActive()
                 .stream()
                 .map(MedicoResponse::fromEntity)
-                .filter(m -> especialidad == null || (m.getEspecialidad() != null && m.getEspecialidad().equals(especialidad)))
+                // El filtro compara contra el NOMBRE de la especialidad (case-insensitive).
+                // Antes comparaba el objeto EspecialidadSimple con el String del parámetro,
+                // por lo que nunca coincidía y devolvía la lista vacía.
+                .filter(m -> especialidad == null
+                        || (m.getEspecialidad() != null
+                            && especialidad.equalsIgnoreCase(m.getEspecialidad().getNombre())))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(medicos);
     }
