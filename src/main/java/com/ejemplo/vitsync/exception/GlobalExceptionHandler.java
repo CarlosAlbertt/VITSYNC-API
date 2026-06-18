@@ -176,7 +176,15 @@ public class GlobalExceptionHandler {
         error.put("timestamp", LocalDateTime.now().toString());
         error.put("status", 500);
         error.put("error", "Error interno del servidor");
-        error.put("message", "Ha ocurrido un error inesperado. Contacte con soporte.");
+
+        // TEMPORAL (solo develop/testing): exponer la causa raíz para diagnosticar
+        // sin acceso a los logs. REVERTIR a un mensaje genérico antes de mergear a master.
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        error.put("message", "DEBUG " + ex.getClass().getSimpleName() + ": " + ex.getMessage()
+                + " || root: " + root.getClass().getName() + ": " + root.getMessage());
 
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
