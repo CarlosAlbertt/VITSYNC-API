@@ -48,4 +48,20 @@ public class ProfileUpdateRequest {
 
     @Size(max = 100, message = "El país no puede superar 100 caracteres")
     private String country;
+
+    // ─── Datos médicos básicos (solo aplican si el usuario es Paciente) ───
+    // Se cifran en reposo (SensitiveDataConverter). Son opcionales y se pueden
+    // vaciar; el controlador los aplica solo cuando vienen en la petición.
+
+    @Size(max = 20, message = "El grupo sanguíneo no puede superar 20 caracteres")
+    private String grupoSanguineo;
+
+    @Size(max = 1000, message = "Las alergias no pueden superar 1000 caracteres")
+    private String alergias;
+
+    @Size(max = 1000, message = "Las condiciones previas no pueden superar 1000 caracteres")
+    private String condicionesPrevias;
+
+    @Size(max = 200, message = "El contacto de emergencia no puede superar 200 caracteres")
+    private String contactoEmergencia;
 }

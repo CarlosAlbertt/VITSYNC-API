@@ -2,6 +2,7 @@ package com.ejemplo.vitsync.controller;
 
 import com.ejemplo.vitsync.config.SecurityUtils;
 import com.ejemplo.vitsync.dto.ProfileUpdateRequest;
+import com.ejemplo.vitsync.model.Paciente;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.service.IUserService;
 import jakarta.validation.Valid;
@@ -96,6 +97,16 @@ public class UserController {
         if (isPresent(request.getPostCode())) user.setPostCode(request.getPostCode().trim());
         if (isPresent(request.getCountry())) user.setCountry(request.getCountry().trim());
 
+        // Datos médicos: solo si el usuario es Paciente. Se aplican cuando el
+        // campo viene en la petición (null = no tocar); cadena vacía = limpiar.
+        // Se cifran en reposo automáticamente (SensitiveDataConverter).
+        if (user instanceof Paciente paciente) {
+            if (request.getGrupoSanguineo() != null) paciente.setGrupoSanguineo(emptyToNull(request.getGrupoSanguineo()));
+            if (request.getAlergias() != null) paciente.setAlergias(emptyToNull(request.getAlergias()));
+            if (request.getCondicionesPrevias() != null) paciente.setCondicionesPrevias(emptyToNull(request.getCondicionesPrevias()));
+            if (request.getContactoEmergencia() != null) paciente.setContactoEmergencia(emptyToNull(request.getContactoEmergencia()));
+        }
+
         userService.saveUser(user);
         return ResponseEntity.ok(user);
     }
@@ -145,5 +156,12 @@ public class UserController {
 
     private boolean isPresent(String value) {
         return value != null && !value.isBlank();
+    }
+
+    /** Trims and converts blank strings to null (para poder limpiar campos opcionales). */
+    private String emptyToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
