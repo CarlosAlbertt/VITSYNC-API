@@ -2,11 +2,13 @@ package com.ejemplo.vitsync.service;
 
 import com.ejemplo.vitsync.audit.AuditService;
 import com.ejemplo.vitsync.dto.AuthResponse;
+import com.ejemplo.vitsync.dto.ChangePasswordRequest;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
 import com.ejemplo.vitsync.enums.AuditAction;
 import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.exception.BusinessException;
+import com.ejemplo.vitsync.exception.ResourceNotFoundException;
 import com.ejemplo.vitsync.model.RefreshToken;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.UserRepository;
@@ -60,6 +62,30 @@ public class AuthService {
         this.emailService = emailService;
         this.refreshTokenService = refreshTokenService;
         this.auditService = auditService;
+    }
+
+    /**
+     * Changes the authenticated user's password after verifying the current one.
+     *
+     * @param userId  caller's own id (ownership already enforced in the controller)
+     * @param request current + new password
+     * @throws ResourceNotFoundException if the user does not exist
+     * @throws BusinessException         if the current password is wrong or the
+     *                                   new one equals the current
+     */
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id " + userId));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BusinessException("La contraseña actual no es correcta");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessException("La nueva contraseña debe ser distinta de la actual");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     /**

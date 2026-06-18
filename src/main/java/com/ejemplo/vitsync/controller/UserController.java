@@ -39,10 +39,13 @@ public class UserController {
 
     private final IUserService userService;
     private final SecurityUtils securityUtils;
+    private final com.ejemplo.vitsync.service.AuthService authService;
 
-    public UserController(IUserService userService, SecurityUtils securityUtils) {
+    public UserController(IUserService userService, SecurityUtils securityUtils,
+                          com.ejemplo.vitsync.service.AuthService authService) {
         this.userService = userService;
         this.securityUtils = securityUtils;
+        this.authService = authService;
     }
 
     /**
@@ -135,6 +138,19 @@ public class UserController {
             @NotBlank(message = "avatarUrl es obligatorio")
             @Size(max = 512, message = "URL demasiado larga")
             String avatarUrl) {
+    }
+
+    /**
+     * Changes the caller's own password. Verifies the current password and
+     * enforces the password policy (delegated to AuthService).
+     */
+    @PatchMapping("/api/users/{id}/password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @PathVariable Long id,
+            @Valid @RequestBody com.ejemplo.vitsync.dto.ChangePasswordRequest request) {
+        securityUtils.requireSelfOrAdmin(id);
+        authService.changePassword(id, request);
+        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada"));
     }
 
     // ─── Endpoints aún sin implementar (devuelven 501 explícito) ──────
