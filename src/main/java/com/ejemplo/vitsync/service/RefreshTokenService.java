@@ -1,11 +1,13 @@
 package com.ejemplo.vitsync.service;
 
 import com.ejemplo.vitsync.exception.BusinessException;
+import com.ejemplo.vitsync.exception.ResourceNotFoundException;
 import com.ejemplo.vitsync.model.RefreshToken;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +17,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.List;
 
 /**
  * Issues, rotates and revokes persistent refresh tokens.
@@ -58,20 +62,86 @@ public class RefreshTokenService {
      */
     @Transactional
     public String create(User user) {
+        return create(user, null, null);
+    }
+
+    /**
+     * Creates a refresh token recording the client device metadata (IP and
+     * User-Agent) for the "active sessions" view.
+     */
+    @Transactional
+    public String create(User user, String ipAddress, String userAgent) {
         // 256 bits de SecureRandom: imposible de adivinar por fuerza bruta
         byte[] randomBytes = new byte[32];
         secureRandom.nextBytes(randomBytes);
         String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
 
+        LocalDateTime now = LocalDateTime.now();
         RefreshToken entity = RefreshToken.builder()
                 .user(user)
                 .tokenHash(sha256(rawToken))
-                .expiresAt(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
+                .expiresAt(now.plusSeconds(refreshExpirationMs / 1000))
                 .revoked(false)
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
+                .ipAddress(truncate(ipAddress, 45))
+                .userAgent(truncate(userAgent, 512))
+                .lastUsedAt(now)
                 .build();
         refreshTokenRepository.save(entity);
         return rawToken;
+    }
+
+    /**
+     * Active (non-revoked, non-expired) sessions of the user, most recent first.
+     */
+    @Transactional(readOnly = true)
+    public List<RefreshToken> listActiveSessions(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        return refreshTokenRepository.findByUserAndRevokedFalse(user).stream()
+                .filter(t -> t.getExpiresAt() != null && t.getExpiresAt().isAfter(now))
+                .sorted(Comparator.comparing(
+                        (RefreshToken t) -> t.getLastUsedAt() != null ? t.getLastUsedAt() : t.getCreatedAt())
+                        .reversed())
+                .toList();
+    }
+
+    /** Revokes one session, verifying it belongs to the user. */
+    @Transactional
+    public void revokeSession(User user, Long sessionId) {
+        RefreshToken token = refreshTokenRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sesión no encontrada"));
+        if (token.getUser() == null || !token.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("No tienes permiso para cerrar esta sesión");
+        }
+        if (!token.isRevoked()) {
+            token.setRevoked(true);
+            refreshTokenRepository.save(token);
+        }
+    }
+
+    /** Revokes all the user's sessions except the one matching the given raw token. */
+    @Transactional
+    public int revokeOtherSessions(User user, String currentRawToken) {
+        String currentHash = currentRawToken != null ? sha256(currentRawToken) : null;
+        int count = 0;
+        for (RefreshToken t : refreshTokenRepository.findByUserAndRevokedFalse(user)) {
+            if (!t.getTokenHash().equals(currentHash)) {
+                t.setRevoked(true);
+                refreshTokenRepository.save(t);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** True if the token corresponds to the currently presented raw refresh token. */
+    public boolean isCurrent(RefreshToken token, String currentRawToken) {
+        return currentRawToken != null && token.getTokenHash().equals(sha256(currentRawToken));
+    }
+
+    private String truncate(String value, int max) {
+        if (value == null) return null;
+        return value.length() <= max ? value : value.substring(0, max);
     }
 
     /**

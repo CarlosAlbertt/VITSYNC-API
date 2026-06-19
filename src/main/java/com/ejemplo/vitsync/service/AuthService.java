@@ -5,6 +5,7 @@ import com.ejemplo.vitsync.dto.AuthResponse;
 import com.ejemplo.vitsync.dto.ChangePasswordRequest;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
+import com.ejemplo.vitsync.dto.SessionResponse;
 import com.ejemplo.vitsync.enums.AuditAction;
 import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.exception.BusinessException;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * Authentication use-cases: login, registration, email verification and
@@ -99,6 +101,11 @@ public class AuthService {
      *                                 has been suspended
      */
     public AuthResponse login(LoginRequest request) {
+        return login(request, null, null);
+    }
+
+    /** Login variant that records the client device (IP + User-Agent) on the session. */
+    public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
         User user;
         try {
             // Mensaje idéntico exista o no el NIF: evita enumeración de usuarios
@@ -124,7 +131,7 @@ public class AuthService {
         }
 
         String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
-        String refreshToken = refreshTokenService.create(user);
+        String refreshToken = refreshTokenService.create(user, ipAddress, userAgent);
         auditService.record(AuditAction.LOGIN_SUCCESS, user.getNif(), true, null);
 
         return AuthResponse.builder()
@@ -235,6 +242,11 @@ public class AuthService {
      * @throws BusinessException if the refresh token is invalid/revoked/expired
      */
     public AuthResponse refresh(String rawRefreshToken) {
+        return refresh(rawRefreshToken, null, null);
+    }
+
+    /** Refresh variant that records the client device (IP + User-Agent) on the rotated session. */
+    public AuthResponse refresh(String rawRefreshToken, String ipAddress, String userAgent) {
         RefreshToken consumed = refreshTokenService.verifyAndRevoke(rawRefreshToken);
         User user = consumed.getUser();
 
@@ -243,7 +255,7 @@ public class AuthService {
         }
 
         String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
-        String newRefreshToken = refreshTokenService.create(user);
+        String newRefreshToken = refreshTokenService.create(user, ipAddress, userAgent);
 
         return AuthResponse.builder()
                 .token(accessToken)
@@ -277,5 +289,28 @@ public class AuthService {
         User user = userRepository.findByNif(nif)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
         return refreshTokenService.revokeAll(user);
+    }
+
+    /** Active sessions of the authenticated user, marking the current one. */
+    public List<SessionResponse> listSessions(String nif, String currentRawToken) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+        return refreshTokenService.listActiveSessions(user).stream()
+                .map(t -> SessionResponse.from(t, refreshTokenService.isCurrent(t, currentRawToken)))
+                .toList();
+    }
+
+    /** Revokes one session of the authenticated user. */
+    public void revokeSession(String nif, Long sessionId) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+        refreshTokenService.revokeSession(user, sessionId);
+    }
+
+    /** Revokes all the user's sessions except the current one. Returns how many. */
+    public int revokeOtherSessions(String nif, String currentRawToken) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+        return refreshTokenService.revokeOtherSessions(user, currentRawToken);
     }
 }
