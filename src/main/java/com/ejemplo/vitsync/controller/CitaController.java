@@ -10,6 +10,7 @@ import java.util.List;
 
 import com.ejemplo.vitsync.dto.CitaRequest;
 import com.ejemplo.vitsync.model.Medico;
+import com.ejemplo.vitsync.model.Paciente;
 import com.ejemplo.vitsync.service.EmailService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import java.time.LocalDateTime;
@@ -46,6 +47,25 @@ public class CitaController {
     @GetMapping
     public ResponseEntity<List<Cita>> getCitas() {
         return ResponseEntity.ok(citaService.getAllCitas());
+    }
+
+    /**
+     * Cancela una cita del paciente autenticado (verifica propiedad para evitar
+     * que un usuario cancele citas de otro — IDOR).
+     */
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelarCita(@PathVariable Long id) {
+        Cita cita = citaService.getCitaById(id);
+        if (cita == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String nif = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (cita.getPaciente() == null || cita.getPaciente().getNif() == null
+                || !cita.getPaciente().getNif().equals(nif)) {
+            return ResponseEntity.status(403).body(java.util.Map.of("error", "No puedes cancelar esta cita"));
+        }
+        citaService.cancelCita(id);
+        return ResponseEntity.ok(java.util.Map.of("message", "Cita cancelada"));
     }
 
     @PostMapping
@@ -85,21 +105,30 @@ public class CitaController {
             cita.setEstado("PROGRAMADA");
             cita.setTipo(request.getSpecialty() != null ? request.getSpecialty() : "General");
 
+            // Asociar la cita al paciente autenticado: sin esto no aparece en
+            // "Mis citas" (GET /api/citas/me filtra por el NIF del paciente).
+            String nif = SecurityContextHolder.getContext().getAuthentication().getName();
+            Paciente paciente = citaService.findPacienteByNif(nif);
+            if (paciente != null) {
+                cita.setPaciente(paciente);
+            }
+
             Cita savedCita = citaService.saveCita(cita);
 
-            // Email de confirmación (best-effort)
+            // Email de confirmación (best-effort) al correo REAL del paciente
             try {
-                String docName = request.getDoctor() != null
-                        ? String.valueOf(request.getDoctor().getOrDefault("name", "Cualquier Profesional"))
-                        : "Cualquier Profesional";
-                String hospitalName = request.getLocation() != null
-                        ? String.valueOf(request.getLocation().getOrDefault("name", "VitSync Centro Médico"))
-                        : "VitSync Centro Médico";
-                String fecha = request.getDate() != null && request.getDate().length() >= 10
-                        ? request.getDate().substring(0, 10) : "";
-                String emailDestino = SecurityContextHolder.getContext().getAuthentication().getName();
-
-                emailService.sendCitaConfirmationEmail(emailDestino, "Paciente", docName, fecha, request.getTime(), hospitalName);
+                if (paciente != null && paciente.getEmail() != null) {
+                    String docName = request.getDoctor() != null
+                            ? String.valueOf(request.getDoctor().getOrDefault("name", "Cualquier Profesional"))
+                            : "Cualquier Profesional";
+                    String hospitalName = request.getLocation() != null
+                            ? String.valueOf(request.getLocation().getOrDefault("name", "VitSync Centro Médico"))
+                            : "VitSync Centro Médico";
+                    String fecha = request.getDate() != null && request.getDate().length() >= 10
+                            ? request.getDate().substring(0, 10) : "";
+                    String nombre = paciente.getName() != null ? paciente.getName() : "Paciente";
+                    emailService.sendCitaConfirmationEmail(paciente.getEmail(), nombre, docName, fecha, request.getTime(), hospitalName);
+                }
             } catch (Exception emailEx) {
                 logger.warn("No se pudo enviar email de confirmación: {}", emailEx.getMessage());
             }
