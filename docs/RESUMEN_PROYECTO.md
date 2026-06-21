@@ -74,7 +74,8 @@ HistorialAcceso.
   `PORT`, `MAIL_FROM_ADDRESS`, `UPLOAD_DIR`, **`DDL_AUTO`** (testing=`update`, prod=`validate`).
 - **Env vars Frontend**: `VITE_API_URL`, `VITE_TALKJS_APP_ID`.
 - **Esquema BD**: prod = `validate` + scripts `scripts/sql/` (V2 refresh_tokens, V3
-  cifrado, V4 audit_logs, V5 metadatos sesión, V6 2FA). Testing = `update` (auto).
+  cifrado, V4 audit_logs, V5 metadatos sesión, V6 2FA, V7 preguntas de recuperación).
+  Testing = `update` (auto).
 - **Avatares**: disco efímero de Render (se pierden al redeploy) → pendiente S3/Cloudinary.
 
 ## 7. Estado del trabajo
@@ -83,10 +84,13 @@ HistorialAcceso.
 - Fase 1 — Perfil: preview de avatar, guardado arreglado (campos médicos cifrados,
   email read-only), eliminar con “ELIMINAR”, avatar roto → iniciales (fetch autenticado).
 - Fase 2 (parcial): cambio de contraseña, **sesiones activas reales**, **2FA por email**.
+- Fase 2 → **preguntas de recuperación** (2026-06-21): campos en User (preguntas en
+  claro, respuestas hash BCrypt, código de reseteo); `POST /VitSync-app/api/users/{id}/security/questions`;
+  flujo público de recuperación `POST /api/auth/recovery/{questions,verify,reset}`
+  (NIF + preguntas + código email, revoca sesiones al resetear). Front: `/recuperar-cuenta`.
 - Citas: asociación al paciente, mapeo de campos, cancelar con ownership, email real.
 
 **Pendiente**:
-- Fase 2 → **preguntas de recuperación** (front listo; falta backend).
 - Fase 3 (RGPD/email): export con verificación (contraseña + código email), desactivar
   cuenta (email + enlace reactivación + bloqueo login), eliminar cuenta (anonimización
   real + email).
