@@ -153,6 +153,27 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "Contraseña actualizada"));
     }
 
+    /**
+     * Activa o desactiva la verificación en dos pasos (2FA por email) del
+     * propio usuario. Cuerpo: {@code {"enabled": true|false}}.
+     */
+    @PutMapping("/api/users/{id}/security/2fa")
+    public ResponseEntity<Map<String, Object>> setTwoFactor(
+            @PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        securityUtils.requireSelfOrAdmin(id);
+        User user = userService.findById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
+        user.setTwoFactorEnabled(enabled);
+        userService.saveUser(user);
+        return ResponseEntity.ok(Map.of(
+                "twoFactorEnabled", enabled,
+                "message", enabled ? "Verificación en dos pasos activada"
+                                   : "Verificación en dos pasos desactivada"));
+    }
+
     // ─── Endpoints aún sin implementar (devuelven 501 explícito) ──────
 
     /**

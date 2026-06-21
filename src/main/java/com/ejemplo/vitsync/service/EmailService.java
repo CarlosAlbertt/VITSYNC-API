@@ -77,6 +77,20 @@ public class EmailService {
         sendHtmlEmail(destinatary, subject, htmlContent);
     }
 
+    /** Envía el código 2FA de un solo uso para completar el inicio de sesión. */
+    public void send2FACodeEmail(String destinatary, String code) {
+        String subject = "Tu código de acceso VitSync";
+        String htmlContent = """
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
+                  <h2 style="color:#0D9488">Código de verificación</h2>
+                  <p>Usa este código de un solo uso para completar tu inicio de sesión:</p>
+                  <p style="font-size:30px;font-weight:bold;letter-spacing:6px;margin:16px 0">%s</p>
+                  <p style="color:#475569;font-size:13px">Caduca en 10 minutos. Si no intentaste iniciar sesión, cambia tu contraseña cuanto antes.</p>
+                </div>
+                """.formatted(code);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
+
     public void sendWelcomeEmail(String destinatary) {
         String subject = "¡Bienvenido a VitSync!";
 

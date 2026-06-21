@@ -113,10 +113,32 @@ public class AuthController {
         logger.info("Intento de login para usuario: {}", request.getNif());
         AuthResponse response = authService.login(request,
                 httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
+
+        // 2FA activado: aún no hay sesión; el frontend pedirá el código por email.
+        if (response.isTwoFactorRequired()) {
+            return ResponseEntity.ok(response);
+        }
+
         logger.info("Login exitoso para usuario: {}", request.getNif());
         // El refresh token viaja TAMBIÉN como cookie httpOnly: el frontend web
         // no debe tocarlo desde JS. El campo del body queda como legado y se
         // eliminará cuando la SPA complete la migración.
+        ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(response);
+    }
+
+    /**
+     * Second step of a 2FA login: verifies the emailed code and opens the
+     * session (sets the refresh cookie). Public, like {@code /login}.
+     */
+    @PostMapping("/login/2fa")
+    public ResponseEntity<AuthResponse> verifyTwoFactor(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.TwoFactorLoginRequest request,
+            HttpServletRequest httpRequest) {
+        AuthResponse response = authService.verifyTwoFactor(request.getNif(), request.getCode(),
+                httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
         ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())

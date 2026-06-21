@@ -70,7 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         // Autenticación pública (login, registro, verificación, refresh).
                         // logout-all exige token: se protege con anyRequest()
-                        .requestMatchers("/api/auth/login", "/api/auth/register",
+                        .requestMatchers("/api/auth/login", "/api/auth/login/2fa", "/api/auth/register",
                                 "/api/auth/verify", "/api/auth/refresh", "/api/auth/logout",
                                 "/api/auth/validate").permitAll()
                         // Catálogo público para reserva de citas (solo lectura)

@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -130,9 +131,73 @@ public class AuthService {
             throw ex;
         }
 
+        // 2FA por email: si está activado, no emitimos tokens todavía. Generamos
+        // un código de un solo uso, lo enviamos por correo y exigimos un 2º paso.
+        if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+            String code = String.valueOf(secureRandom.nextInt(900000) + 100000);
+            user.setTwoFactorCode(passwordEncoder.encode(code));
+            user.setTwoFactorCodeExpiry(LocalDateTime.now().plusMinutes(10));
+            userRepository.save(user);
+            try {
+                emailService.send2FACodeEmail(user.getEmail(), code);
+            } catch (Exception mailEx) {
+                // best-effort: no filtramos el detalle del fallo de correo
+            }
+            return AuthResponse.builder()
+                    .nif(user.getNif())
+                    .twoFactorRequired(true)
+                    .message("Te hemos enviado un código a tu correo")
+                    .build();
+        }
+
         String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
         String refreshToken = refreshTokenService.create(user, ipAddress, userAgent);
         auditService.record(AuditAction.LOGIN_SUCCESS, user.getNif(), true, null);
+
+        return AuthResponse.builder()
+                .token(accessToken)
+                .refreshToken(refreshToken)
+                .id(user.getId())
+                .nif(user.getNif())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .message("Login exitoso")
+                .build();
+    }
+
+    /**
+     * Completes a 2FA login: verifies the code emailed in the first step and,
+     * if correct and not expired, issues the session (access + refresh tokens).
+     *
+     * @param nif       user NIF (from the first login step)
+     * @param code      6-digit code received by email
+     * @param ipAddress client IP (for the session record)
+     * @param userAgent client User-Agent (for the session record)
+     * @return access + refresh tokens
+     * @throws BusinessException if the code is wrong, missing or expired
+     */
+    public AuthResponse verifyTwoFactor(String nif, String code, String ipAddress, String userAgent) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
+
+        if (!Boolean.TRUE.equals(user.getTwoFactorEnabled())
+                || user.getTwoFactorCode() == null
+                || user.getTwoFactorCodeExpiry() == null
+                || user.getTwoFactorCodeExpiry().isBefore(LocalDateTime.now())) {
+            throw new BusinessException("Código caducado o inválido. Inicia sesión de nuevo.");
+        }
+        if (code == null || !passwordEncoder.matches(code, user.getTwoFactorCode())) {
+            auditService.record(AuditAction.LOGIN_FAILURE, nif, false, "2FA");
+            throw new BusinessException("Código incorrecto");
+        }
+
+        user.setTwoFactorCode(null);
+        user.setTwoFactorCodeExpiry(null);
+        userRepository.save(user);
+
+        String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
+        String refreshToken = refreshTokenService.create(user, ipAddress, userAgent);
+        auditService.record(AuditAction.LOGIN_SUCCESS, user.getNif(), true, "2FA");
 
         return AuthResponse.builder()
                 .token(accessToken)

@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -82,6 +83,16 @@ public class User {
 
     @Column(name = "two_factor_enabled")
     private Boolean twoFactorEnabled = false;
+
+    /** Hash del código 2FA de un solo uso enviado por email en el login. */
+    @Column(name = "two_factor_code")
+    @JsonIgnore
+    private String twoFactorCode;
+
+    /** Caducidad del código 2FA (10 min). */
+    @Column(name = "two_factor_code_expiry")
+    @JsonIgnore
+    private LocalDateTime twoFactorCodeExpiry;
 
     @Column(name = "suspended")
     private Boolean suspended = false;
