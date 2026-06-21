@@ -41,7 +41,9 @@ public class RateLimitService {
         /** Verificación: 10 intentos de código por cuenta. */
         VERIFY(10, Duration.ofHours(1)),
         /** Exportación RGPD: 1 cada 24 horas por usuario. */
-        GDPR_EXPORT(1, Duration.ofHours(24));
+        GDPR_EXPORT(1, Duration.ofHours(24)),
+        /** Recuperación de contraseña: 5 intentos por hora (anti fuerza bruta de respuestas/código). */
+        PASSWORD_RECOVERY(5, Duration.ofHours(1));
 
         private final long capacity;
         private final Duration window;

@@ -40,12 +40,15 @@ public class UserController {
     private final IUserService userService;
     private final SecurityUtils securityUtils;
     private final com.ejemplo.vitsync.service.AuthService authService;
+    private final com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService;
 
     public UserController(IUserService userService, SecurityUtils securityUtils,
-                          com.ejemplo.vitsync.service.AuthService authService) {
+                          com.ejemplo.vitsync.service.AuthService authService,
+                          com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService) {
         this.userService = userService;
         this.securityUtils = securityUtils;
         this.authService = authService;
+        this.accountRecoveryService = accountRecoveryService;
     }
 
     /**
@@ -172,6 +175,20 @@ public class UserController {
                 "twoFactorEnabled", enabled,
                 "message", enabled ? "Verificación en dos pasos activada"
                                    : "Verificación en dos pasos desactivada"));
+    }
+
+    /**
+     * Stores (or replaces) the caller's two security questions used for
+     * password recovery. The answers are hashed with BCrypt and never returned.
+     * Body: {@code {"q1","a1","q2","a2"}}.
+     */
+    @PostMapping("/api/users/{id}/security/questions")
+    public ResponseEntity<Map<String, String>> saveSecurityQuestions(
+            @PathVariable Long id,
+            @Valid @RequestBody com.ejemplo.vitsync.dto.SecurityQuestionsRequest request) {
+        securityUtils.requireSelfOrAdmin(id);
+        accountRecoveryService.saveQuestions(id, request);
+        return ResponseEntity.ok(Map.of("message", "Preguntas de seguridad guardadas"));
     }
 
     // ─── Endpoints aún sin implementar (devuelven 501 explícito) ──────

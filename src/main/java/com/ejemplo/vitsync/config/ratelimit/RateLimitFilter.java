@@ -86,6 +86,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (path.endsWith("/api/auth/verify")) {
             return RateLimitService.Policy.VERIFY;
         }
+        // Flujo de recuperación: limita el sondeo de respuestas y de código
+        if (path.contains("/api/auth/recovery/")) {
+            return RateLimitService.Policy.PASSWORD_RECOVERY;
+        }
         return null;
     }
 

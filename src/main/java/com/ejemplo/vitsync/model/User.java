@@ -99,4 +99,33 @@ public class User {
 
     @Column(name = "avatar_url")
     private String avatarUrl;
+
+    // ─── Preguntas de recuperación (Fase 2) ──────────────────────────────
+    // Los enunciados se guardan en claro (el usuario debe poder verlos para
+    // responder en el flujo de recuperación); las respuestas se almacenan
+    // hasheadas con BCrypt y NUNCA se serializan en respuestas JSON.
+
+    @Column(name = "security_question_1")
+    private String securityQuestion1;
+
+    @Column(name = "security_question_2")
+    private String securityQuestion2;
+
+    @Column(name = "security_answer_1")
+    @JsonIgnore
+    private String securityAnswer1;
+
+    @Column(name = "security_answer_2")
+    @JsonIgnore
+    private String securityAnswer2;
+
+    /** Hash (BCrypt) del código de un solo uso para resetear la contraseña olvidada. */
+    @Column(name = "password_reset_code")
+    @JsonIgnore
+    private String passwordResetCode;
+
+    /** Caducidad del código de reseteo (10 min). */
+    @Column(name = "password_reset_code_expiry")
+    @JsonIgnore
+    private LocalDateTime passwordResetCodeExpiry;
 }

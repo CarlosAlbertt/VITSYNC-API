@@ -54,10 +54,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
+    private final com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService;
 
-    public AuthController(AuthService authService, JwtUtil jwtUtil) {
+    public AuthController(AuthService authService, JwtUtil jwtUtil,
+                          com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
+        this.accountRecoveryService = accountRecoveryService;
     }
 
     /**
@@ -264,6 +267,51 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "message", "Otras sesiones cerradas",
                 "sessionsRevoked", revoked));
+    }
+
+    // ─── Recuperación de contraseña (preguntas de seguridad + código email) ──
+
+    /**
+     * Step 1 of the forgotten-password flow: returns the user's two security
+     * questions so the SPA can render them. Public and rate-limited.
+     *
+     * @param request NIF identifying the account
+     * @return {@code {question1, question2}}; 400 if no questions configured
+     */
+    @PostMapping("/recovery/questions")
+    public ResponseEntity<Map<String, String>> recoveryQuestions(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.RecoveryStartRequest request) {
+        return ResponseEntity.ok(accountRecoveryService.getQuestionsForRecovery(request.getNif()));
+    }
+
+    /**
+     * Step 2: verifies both answers and, if correct, emails a one-time reset
+     * code. Public and rate-limited.
+     *
+     * @param request NIF + the two answers
+     * @return 200 with a neutral message; 400 if the answers are wrong
+     */
+    @PostMapping("/recovery/verify")
+    public ResponseEntity<Map<String, String>> recoveryVerify(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.RecoveryVerifyRequest request) {
+        accountRecoveryService.verifyAnswersAndSendCode(
+                request.getNif(), request.getAnswer1(), request.getAnswer2());
+        return ResponseEntity.ok(Map.of("message", "Te hemos enviado un código a tu correo"));
+    }
+
+    /**
+     * Step 3: validates the emailed code and sets the new password (revoking
+     * every active session). Public and rate-limited.
+     *
+     * @param request NIF + code + new password
+     * @return 200 on success; 400 if the code is wrong/expired
+     */
+    @PostMapping("/recovery/reset")
+    public ResponseEntity<Map<String, String>> recoveryReset(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.RecoveryResetRequest request) {
+        accountRecoveryService.resetPassword(
+                request.getNif(), request.getCode(), request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada. Ya puedes iniciar sesión."));
     }
 
     /**

@@ -104,7 +104,7 @@ class AuthServiceTest {
             when(userRepository.findByNif("12345678A")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("Password123", testUser.getPassword())).thenReturn(true);
             when(jwtUtil.generateToken("12345678A", "PACIENTE")).thenReturn("jwt.token.here");
-            when(refreshTokenService.create(testUser)).thenReturn("refresh-token");
+            when(refreshTokenService.create(testUser, null, null)).thenReturn("refresh-token");
 
             AuthResponse response = authService.login(loginRequest);
 
@@ -115,7 +115,7 @@ class AuthServiceTest {
             assertEquals(Role.PACIENTE, response.getRole());
 
             verify(jwtUtil).generateToken("12345678A", "PACIENTE");
-            verify(refreshTokenService).create(testUser);
+            verify(refreshTokenService).create(testUser, null, null);
         }
 
         @Test
