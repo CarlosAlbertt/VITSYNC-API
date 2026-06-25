@@ -49,4 +49,9 @@ public class CitaService {
     public List<Cita> getCitasByNif(String nif) {
         return citaRepository.findByPaciente_Nif(nif);
     }
+
+    /** ¿Hay ya una cita activa para ese médico a esa hora exacta? (control de concurrencia). */
+    public boolean isSlotTaken(Long medicoId, java.time.LocalDateTime fechaHora) {
+        return citaRepository.existsActiveSlot(medicoId, fechaHora);
+    }
 }
