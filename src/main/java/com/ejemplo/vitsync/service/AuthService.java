@@ -229,15 +229,11 @@ public class AuthService {
             throw new BusinessException("No se pudo completar el registro con los datos proporcionados");
         }
 
-        // La subclase concreta determina la tabla JOINED donde se persiste
-        User user;
-        if (request.getRole() == Role.PACIENTE) {
-            user = new com.ejemplo.vitsync.model.Paciente();
-        } else if (request.getRole() == Role.MEDICO) {
-            user = new com.ejemplo.vitsync.model.Medico();
-        } else {
-            user = new User();
-        }
+        // Registro público: SIEMPRE se crea como PACIENTE. El alta de médicos es
+        // exclusiva del administrador (POST /api/medicos), así que ignoramos
+        // cualquier rol que llegue desde el cliente para evitar escalada de
+        // privilegios (auto-registro como MEDICO/ADMIN).
+        User user = new com.ejemplo.vitsync.model.Paciente();
 
         user.setName(request.getName());
         user.setFirstName(request.getFirstName());
@@ -246,7 +242,7 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setGender(request.getGender());
-        user.setRole(request.getRole());
+        user.setRole(Role.PACIENTE);
         user.setBirthDate(request.getBirthDate());
         user.setPhone(request.getPhone());
         user.setAddress(request.getAddress());
