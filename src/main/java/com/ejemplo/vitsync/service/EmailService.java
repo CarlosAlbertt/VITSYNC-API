@@ -77,6 +77,62 @@ public class EmailService {
         sendHtmlEmail(destinatary, subject, htmlContent);
     }
 
+    /** Envía el código 2FA de un solo uso para completar el inicio de sesión. */
+    public void send2FACodeEmail(String destinatary, String code) {
+        String subject = "Tu código de acceso VitSync";
+        String htmlContent = """
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
+                  <h2 style="color:#0D9488">Código de verificación</h2>
+                  <p>Usa este código de un solo uso para completar tu inicio de sesión:</p>
+                  <p style="font-size:30px;font-weight:bold;letter-spacing:6px;margin:16px 0">%s</p>
+                  <p style="color:#475569;font-size:13px">Caduca en 10 minutos. Si no intentaste iniciar sesión, cambia tu contraseña cuanto antes.</p>
+                </div>
+                """.formatted(code);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
+
+    /**
+     * Sends the one-time code that lets a user reset a forgotten password
+     * after answering their security questions. Contains no clinical data.
+     *
+     * @param destinatary user email
+     * @param code        6-digit single-use code (10-minute validity)
+     */
+    public void sendPasswordResetCodeEmail(String destinatary, String code) {
+        String subject = "VitSync - Código para restablecer tu contraseña";
+        String htmlContent = """
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
+                  <h2 style="color:#0D9488">Restablecer contraseña</h2>
+                  <p>Has respondido correctamente a tus preguntas de seguridad. Usa este
+                  código de un solo uso para fijar una nueva contraseña:</p>
+                  <p style="font-size:30px;font-weight:bold;letter-spacing:6px;margin:16px 0">%s</p>
+                  <p style="color:#475569;font-size:13px">Caduca en 10 minutos. Si no solicitaste
+                  restablecer tu contraseña, ignora este correo: tu cuenta sigue protegida.</p>
+                </div>
+                """.formatted(code);
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
+
+    /**
+     * Notifies the user that their password was just changed (via the recovery
+     * flow). Acts as a tripwire if the change was not initiated by them.
+     *
+     * @param destinatary user email
+     */
+    public void sendPasswordChangedEmail(String destinatary) {
+        String subject = "VitSync - Tu contraseña ha cambiado";
+        String htmlContent = """
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
+                  <h2 style="color:#0D9488">Contraseña actualizada</h2>
+                  <p>Te confirmamos que la contraseña de tu cuenta VitSync se ha cambiado
+                  correctamente. Por seguridad, hemos cerrado todas las sesiones abiertas.</p>
+                  <p style="color:#475569;font-size:13px">Si <strong>no</strong> has sido tú,
+                  contacta con soporte de inmediato.</p>
+                </div>
+                """;
+        sendHtmlEmail(destinatary, subject, htmlContent);
+    }
+
     public void sendWelcomeEmail(String destinatary) {
         String subject = "¡Bienvenido a VitSync!";
 

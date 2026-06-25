@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -28,6 +29,15 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * @return the matching token, if any
      */
     Optional<RefreshToken> findByTokenHash(String tokenHash);
+
+    /**
+     * Active (non-revoked) sessions of a user, for the "active sessions" view.
+     * Expired-but-not-revoked tokens are filtered out in the service layer.
+     *
+     * @param user session owner
+     * @return non-revoked refresh tokens of the user
+     */
+    List<RefreshToken> findByUserAndRevokedFalse(User user);
 
     /**
      * Revokes every active refresh token of a user (logout-all / GDPR delete).

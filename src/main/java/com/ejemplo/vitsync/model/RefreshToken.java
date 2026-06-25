@@ -65,4 +65,16 @@ public class RefreshToken {
     /** Issue instant — kept for audit/forensics. */
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    /** Client IP at issue/refresh (proxied via X-Forwarded-For). Nullable for legacy rows. */
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    /** Raw User-Agent of the client, for showing the device in "active sessions". */
+    @Column(name = "user_agent", length = 512)
+    private String userAgent;
+
+    /** Last time this session was used (login or refresh). */
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
 }

@@ -38,4 +38,7 @@ public class AuthResponse {
     private String email;
     private Role role;
     private String message;
+
+    /** true cuando el login requiere un segundo paso (código 2FA por email). */
+    private boolean twoFactorRequired;
 }

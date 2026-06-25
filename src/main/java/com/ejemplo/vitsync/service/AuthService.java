@@ -2,11 +2,14 @@ package com.ejemplo.vitsync.service;
 
 import com.ejemplo.vitsync.audit.AuditService;
 import com.ejemplo.vitsync.dto.AuthResponse;
+import com.ejemplo.vitsync.dto.ChangePasswordRequest;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
+import com.ejemplo.vitsync.dto.SessionResponse;
 import com.ejemplo.vitsync.enums.AuditAction;
 import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.exception.BusinessException;
+import com.ejemplo.vitsync.exception.ResourceNotFoundException;
 import com.ejemplo.vitsync.model.RefreshToken;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.repository.UserRepository;
@@ -19,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Authentication use-cases: login, registration, email verification and
@@ -63,6 +68,30 @@ public class AuthService {
     }
 
     /**
+     * Changes the authenticated user's password after verifying the current one.
+     *
+     * @param userId  caller's own id (ownership already enforced in the controller)
+     * @param request current + new password
+     * @throws ResourceNotFoundException if the user does not exist
+     * @throws BusinessException         if the current password is wrong or the
+     *                                   new one equals the current
+     */
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id " + userId));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BusinessException("La contraseña actual no es correcta");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessException("La nueva contraseña debe ser distinta de la actual");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    /**
      * Authenticates a user and opens a session.
      *
      * @param request NIF + password
@@ -73,6 +102,11 @@ public class AuthService {
      *                                 has been suspended
      */
     public AuthResponse login(LoginRequest request) {
+        return login(request, null, null);
+    }
+
+    /** Login variant that records the client device (IP + User-Agent) on the session. */
+    public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
         User user;
         try {
             // Mensaje idéntico exista o no el NIF: evita enumeración de usuarios
@@ -97,9 +131,73 @@ public class AuthService {
             throw ex;
         }
 
+        // 2FA por email: si está activado, no emitimos tokens todavía. Generamos
+        // un código de un solo uso, lo enviamos por correo y exigimos un 2º paso.
+        if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+            String code = String.valueOf(secureRandom.nextInt(900000) + 100000);
+            user.setTwoFactorCode(passwordEncoder.encode(code));
+            user.setTwoFactorCodeExpiry(LocalDateTime.now().plusMinutes(10));
+            userRepository.save(user);
+            try {
+                emailService.send2FACodeEmail(user.getEmail(), code);
+            } catch (Exception mailEx) {
+                // best-effort: no filtramos el detalle del fallo de correo
+            }
+            return AuthResponse.builder()
+                    .nif(user.getNif())
+                    .twoFactorRequired(true)
+                    .message("Te hemos enviado un código a tu correo")
+                    .build();
+        }
+
         String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
-        String refreshToken = refreshTokenService.create(user);
+        String refreshToken = refreshTokenService.create(user, ipAddress, userAgent);
         auditService.record(AuditAction.LOGIN_SUCCESS, user.getNif(), true, null);
+
+        return AuthResponse.builder()
+                .token(accessToken)
+                .refreshToken(refreshToken)
+                .id(user.getId())
+                .nif(user.getNif())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .message("Login exitoso")
+                .build();
+    }
+
+    /**
+     * Completes a 2FA login: verifies the code emailed in the first step and,
+     * if correct and not expired, issues the session (access + refresh tokens).
+     *
+     * @param nif       user NIF (from the first login step)
+     * @param code      6-digit code received by email
+     * @param ipAddress client IP (for the session record)
+     * @param userAgent client User-Agent (for the session record)
+     * @return access + refresh tokens
+     * @throws BusinessException if the code is wrong, missing or expired
+     */
+    public AuthResponse verifyTwoFactor(String nif, String code, String ipAddress, String userAgent) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
+
+        if (!Boolean.TRUE.equals(user.getTwoFactorEnabled())
+                || user.getTwoFactorCode() == null
+                || user.getTwoFactorCodeExpiry() == null
+                || user.getTwoFactorCodeExpiry().isBefore(LocalDateTime.now())) {
+            throw new BusinessException("Código caducado o inválido. Inicia sesión de nuevo.");
+        }
+        if (code == null || !passwordEncoder.matches(code, user.getTwoFactorCode())) {
+            auditService.record(AuditAction.LOGIN_FAILURE, nif, false, "2FA");
+            throw new BusinessException("Código incorrecto");
+        }
+
+        user.setTwoFactorCode(null);
+        user.setTwoFactorCodeExpiry(null);
+        userRepository.save(user);
+
+        String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
+        String refreshToken = refreshTokenService.create(user, ipAddress, userAgent);
+        auditService.record(AuditAction.LOGIN_SUCCESS, user.getNif(), true, "2FA");
 
         return AuthResponse.builder()
                 .token(accessToken)
@@ -209,6 +307,11 @@ public class AuthService {
      * @throws BusinessException if the refresh token is invalid/revoked/expired
      */
     public AuthResponse refresh(String rawRefreshToken) {
+        return refresh(rawRefreshToken, null, null);
+    }
+
+    /** Refresh variant that records the client device (IP + User-Agent) on the rotated session. */
+    public AuthResponse refresh(String rawRefreshToken, String ipAddress, String userAgent) {
         RefreshToken consumed = refreshTokenService.verifyAndRevoke(rawRefreshToken);
         User user = consumed.getUser();
 
@@ -217,7 +320,7 @@ public class AuthService {
         }
 
         String accessToken = jwtUtil.generateToken(user.getNif(), user.getRole().name());
-        String newRefreshToken = refreshTokenService.create(user);
+        String newRefreshToken = refreshTokenService.create(user, ipAddress, userAgent);
 
         return AuthResponse.builder()
                 .token(accessToken)
@@ -251,5 +354,28 @@ public class AuthService {
         User user = userRepository.findByNif(nif)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
         return refreshTokenService.revokeAll(user);
+    }
+
+    /** Active sessions of the authenticated user, marking the current one. */
+    public List<SessionResponse> listSessions(String nif, String currentRawToken) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+        return refreshTokenService.listActiveSessions(user).stream()
+                .map(t -> SessionResponse.from(t, refreshTokenService.isCurrent(t, currentRawToken)))
+                .toList();
+    }
+
+    /** Revokes one session of the authenticated user. */
+    public void revokeSession(String nif, Long sessionId) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+        refreshTokenService.revokeSession(user, sessionId);
+    }
+
+    /** Revokes all the user's sessions except the current one. Returns how many. */
+    public int revokeOtherSessions(String nif, String currentRawToken) {
+        User user = userRepository.findByNif(nif)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+        return refreshTokenService.revokeOtherSessions(user, currentRawToken);
     }
 }

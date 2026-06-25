@@ -4,10 +4,12 @@ import com.ejemplo.vitsync.dto.AuthResponse;
 import com.ejemplo.vitsync.dto.LoginRequest;
 import com.ejemplo.vitsync.dto.RefreshRequest;
 import com.ejemplo.vitsync.dto.RegisterRequest;
+import com.ejemplo.vitsync.dto.SessionResponse;
 import com.ejemplo.vitsync.dto.VerifyRequest;
 import com.ejemplo.vitsync.exception.BusinessException;
 import com.ejemplo.vitsync.service.AuthService;
 import com.ejemplo.vitsync.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,10 +54,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
+    private final com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService;
 
-    public AuthController(AuthService authService, JwtUtil jwtUtil) {
+    public AuthController(AuthService authService, JwtUtil jwtUtil,
+                          com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
+        this.accountRecoveryService = accountRecoveryService;
     }
 
     /**
@@ -104,14 +110,38 @@ public class AuthController {
      *         400 if the account is unverified/suspended; 429 if rate-limited
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
+                                              HttpServletRequest httpRequest) {
         // Solo se loguea el intento, nunca la contraseña
         logger.info("Intento de login para usuario: {}", request.getNif());
-        AuthResponse response = authService.login(request);
+        AuthResponse response = authService.login(request,
+                httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
+
+        // 2FA activado: aún no hay sesión; el frontend pedirá el código por email.
+        if (response.isTwoFactorRequired()) {
+            return ResponseEntity.ok(response);
+        }
+
         logger.info("Login exitoso para usuario: {}", request.getNif());
         // El refresh token viaja TAMBIÉN como cookie httpOnly: el frontend web
         // no debe tocarlo desde JS. El campo del body queda como legado y se
         // eliminará cuando la SPA complete la migración.
+        ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(response);
+    }
+
+    /**
+     * Second step of a 2FA login: verifies the emailed code and opens the
+     * session (sets the refresh cookie). Public, like {@code /login}.
+     */
+    @PostMapping("/login/2fa")
+    public ResponseEntity<AuthResponse> verifyTwoFactor(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.TwoFactorLoginRequest request,
+            HttpServletRequest httpRequest) {
+        AuthResponse response = authService.verifyTwoFactor(request.getNif(), request.getCode(),
+                httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
         ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
@@ -158,8 +188,10 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(
             @CookieValue(value = REFRESH_COOKIE, required = false) String cookieToken,
-            @RequestBody(required = false) RefreshRequest request) {
-        AuthResponse response = authService.refresh(resolveRefreshToken(cookieToken, request));
+            @RequestBody(required = false) RefreshRequest request,
+            HttpServletRequest httpRequest) {
+        AuthResponse response = authService.refresh(resolveRefreshToken(cookieToken, request),
+                httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
         // Rotación: la cookie se renueva con el nuevo token en cada refresh
         ResponseCookie cookie = buildRefreshCookie(response.getRefreshToken(), REFRESH_COOKIE_TTL);
         return ResponseEntity.ok()
@@ -205,6 +237,81 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "message", "Todas las sesiones cerradas",
                 "sessionsRevoked", revoked));
+    }
+
+    /**
+     * Lists the authenticated user's active sessions (device, IP, last use),
+     * marking the current one (matched against the httpOnly refresh cookie).
+     */
+    @GetMapping("/sessions")
+    public ResponseEntity<List<SessionResponse>> sessions(
+            Authentication authentication,
+            @CookieValue(value = REFRESH_COOKIE, required = false) String cookieToken) {
+        return ResponseEntity.ok(authService.listSessions(authentication.getName(), cookieToken));
+    }
+
+    /** Revokes one of the authenticated user's sessions by id. */
+    @DeleteMapping("/sessions/{id}")
+    public ResponseEntity<Map<String, String>> revokeSession(
+            Authentication authentication, @PathVariable Long id) {
+        authService.revokeSession(authentication.getName(), id);
+        return ResponseEntity.ok(Map.of("message", "Sesión cerrada"));
+    }
+
+    /** Revokes all sessions except the current one. */
+    @PostMapping("/sessions/revoke-others")
+    public ResponseEntity<Map<String, Object>> revokeOtherSessions(
+            Authentication authentication,
+            @CookieValue(value = REFRESH_COOKIE, required = false) String cookieToken) {
+        int revoked = authService.revokeOtherSessions(authentication.getName(), cookieToken);
+        return ResponseEntity.ok(Map.of(
+                "message", "Otras sesiones cerradas",
+                "sessionsRevoked", revoked));
+    }
+
+    // ─── Recuperación de contraseña (preguntas de seguridad + código email) ──
+
+    /**
+     * Step 1 of the forgotten-password flow: returns the user's two security
+     * questions so the SPA can render them. Public and rate-limited.
+     *
+     * @param request NIF identifying the account
+     * @return {@code {question1, question2}}; 400 if no questions configured
+     */
+    @PostMapping("/recovery/questions")
+    public ResponseEntity<Map<String, String>> recoveryQuestions(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.RecoveryStartRequest request) {
+        return ResponseEntity.ok(accountRecoveryService.getQuestionsForRecovery(request.getNif()));
+    }
+
+    /**
+     * Step 2: verifies both answers and, if correct, emails a one-time reset
+     * code. Public and rate-limited.
+     *
+     * @param request NIF + the two answers
+     * @return 200 with a neutral message; 400 if the answers are wrong
+     */
+    @PostMapping("/recovery/verify")
+    public ResponseEntity<Map<String, String>> recoveryVerify(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.RecoveryVerifyRequest request) {
+        accountRecoveryService.verifyAnswersAndSendCode(
+                request.getNif(), request.getAnswer1(), request.getAnswer2());
+        return ResponseEntity.ok(Map.of("message", "Te hemos enviado un código a tu correo"));
+    }
+
+    /**
+     * Step 3: validates the emailed code and sets the new password (revoking
+     * every active session). Public and rate-limited.
+     *
+     * @param request NIF + code + new password
+     * @return 200 on success; 400 if the code is wrong/expired
+     */
+    @PostMapping("/recovery/reset")
+    public ResponseEntity<Map<String, String>> recoveryReset(
+            @Valid @RequestBody com.ejemplo.vitsync.dto.RecoveryResetRequest request) {
+        accountRecoveryService.resetPassword(
+                request.getNif(), request.getCode(), request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada. Ya puedes iniciar sesión."));
     }
 
     /**

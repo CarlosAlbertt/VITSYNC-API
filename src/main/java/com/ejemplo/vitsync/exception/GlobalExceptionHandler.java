@@ -176,7 +176,10 @@ public class GlobalExceptionHandler {
         error.put("timestamp", LocalDateTime.now().toString());
         error.put("status", 500);
         error.put("error", "Error interno del servidor");
-        error.put("message", "Ha ocurrido un error inesperado. Contacte con soporte.");
+
+        // Nunca exponer la causa interna al cliente: solo un mensaje genérico
+        // (el detalle queda en el log del servidor).
+        error.put("message", "Ha ocurrido un error inesperado. Inténtalo de nuevo más tarde.");
 
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }

@@ -2,6 +2,7 @@ package com.ejemplo.vitsync.controller;
 
 import com.ejemplo.vitsync.config.SecurityUtils;
 import com.ejemplo.vitsync.dto.ProfileUpdateRequest;
+import com.ejemplo.vitsync.model.Paciente;
 import com.ejemplo.vitsync.model.User;
 import com.ejemplo.vitsync.service.IUserService;
 import jakarta.validation.Valid;
@@ -38,10 +39,16 @@ public class UserController {
 
     private final IUserService userService;
     private final SecurityUtils securityUtils;
+    private final com.ejemplo.vitsync.service.AuthService authService;
+    private final com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService;
 
-    public UserController(IUserService userService, SecurityUtils securityUtils) {
+    public UserController(IUserService userService, SecurityUtils securityUtils,
+                          com.ejemplo.vitsync.service.AuthService authService,
+                          com.ejemplo.vitsync.service.AccountRecoveryService accountRecoveryService) {
         this.userService = userService;
         this.securityUtils = securityUtils;
+        this.authService = authService;
+        this.accountRecoveryService = accountRecoveryService;
     }
 
     /**
@@ -96,6 +103,16 @@ public class UserController {
         if (isPresent(request.getPostCode())) user.setPostCode(request.getPostCode().trim());
         if (isPresent(request.getCountry())) user.setCountry(request.getCountry().trim());
 
+        // Datos médicos: solo si el usuario es Paciente. Se aplican cuando el
+        // campo viene en la petición (null = no tocar); cadena vacía = limpiar.
+        // Se cifran en reposo automáticamente (SensitiveDataConverter).
+        if (user instanceof Paciente paciente) {
+            if (request.getGrupoSanguineo() != null) paciente.setGrupoSanguineo(emptyToNull(request.getGrupoSanguineo()));
+            if (request.getAlergias() != null) paciente.setAlergias(emptyToNull(request.getAlergias()));
+            if (request.getCondicionesPrevias() != null) paciente.setCondicionesPrevias(emptyToNull(request.getCondicionesPrevias()));
+            if (request.getContactoEmergencia() != null) paciente.setContactoEmergencia(emptyToNull(request.getContactoEmergencia()));
+        }
+
         userService.saveUser(user);
         return ResponseEntity.ok(user);
     }
@@ -126,6 +143,54 @@ public class UserController {
             String avatarUrl) {
     }
 
+    /**
+     * Changes the caller's own password. Verifies the current password and
+     * enforces the password policy (delegated to AuthService).
+     */
+    @PatchMapping("/api/users/{id}/password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @PathVariable Long id,
+            @Valid @RequestBody com.ejemplo.vitsync.dto.ChangePasswordRequest request) {
+        securityUtils.requireSelfOrAdmin(id);
+        authService.changePassword(id, request);
+        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada"));
+    }
+
+    /**
+     * Activa o desactiva la verificación en dos pasos (2FA por email) del
+     * propio usuario. Cuerpo: {@code {"enabled": true|false}}.
+     */
+    @PutMapping("/api/users/{id}/security/2fa")
+    public ResponseEntity<Map<String, Object>> setTwoFactor(
+            @PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        securityUtils.requireSelfOrAdmin(id);
+        User user = userService.findById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
+        user.setTwoFactorEnabled(enabled);
+        userService.saveUser(user);
+        return ResponseEntity.ok(Map.of(
+                "twoFactorEnabled", enabled,
+                "message", enabled ? "Verificación en dos pasos activada"
+                                   : "Verificación en dos pasos desactivada"));
+    }
+
+    /**
+     * Stores (or replaces) the caller's two security questions used for
+     * password recovery. The answers are hashed with BCrypt and never returned.
+     * Body: {@code {"q1","a1","q2","a2"}}.
+     */
+    @PostMapping("/api/users/{id}/security/questions")
+    public ResponseEntity<Map<String, String>> saveSecurityQuestions(
+            @PathVariable Long id,
+            @Valid @RequestBody com.ejemplo.vitsync.dto.SecurityQuestionsRequest request) {
+        securityUtils.requireSelfOrAdmin(id);
+        accountRecoveryService.saveQuestions(id, request);
+        return ResponseEntity.ok(Map.of("message", "Preguntas de seguridad guardadas"));
+    }
+
     // ─── Endpoints aún sin implementar (devuelven 501 explícito) ──────
 
     /**
@@ -145,5 +210,12 @@ public class UserController {
 
     private boolean isPresent(String value) {
         return value != null && !value.isBlank();
+    }
+
+    /** Trims and converts blank strings to null (para poder limpiar campos opcionales). */
+    private String emptyToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
