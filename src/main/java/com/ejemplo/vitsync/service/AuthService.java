@@ -222,11 +222,11 @@ public class AuthService {
      */
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByNif(request.getNif())) {
-            throw new BusinessException("No se pudo completar el registro con los datos proporcionados");
+            throw new BusinessException("El NIF o el correo electrónico ya están registrados. Si ya tienes una cuenta, inicia sesión.");
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BusinessException("No se pudo completar el registro con los datos proporcionados");
+            throw new BusinessException("El NIF o el correo electrónico ya están registrados. Si ya tienes una cuenta, inicia sesión.");
         }
 
         // Registro público: SIEMPRE se crea como PACIENTE. El alta de médicos es
