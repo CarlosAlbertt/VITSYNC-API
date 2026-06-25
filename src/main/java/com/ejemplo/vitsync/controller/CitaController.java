@@ -113,6 +113,14 @@ public class CitaController {
                 cita.setPaciente(paciente);
             }
 
+            // No permitir reservar en el pasado (p. ej. hoy a una hora ya vencida).
+            // "Ahora" en hora local de España, no UTC.
+            if (cita.getFechaHora() != null && cita.getFechaHora().isBefore(
+                    LocalDateTime.now(java.time.ZoneId.of("Europe/Madrid")))) {
+                return ResponseEntity.badRequest().body(java.util.Map.of(
+                        "message", "No puedes reservar una cita en una fecha u hora ya pasada."));
+            }
+
             // Control de concurrencia (chequeo previo): si ese médico ya tiene una
             // cita activa a esa hora, no se permite duplicar.
             if (cita.getMedico() != null && cita.getFechaHora() != null
