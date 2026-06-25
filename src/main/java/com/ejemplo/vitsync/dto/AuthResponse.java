@@ -1,6 +1,7 @@
 package com.ejemplo.vitsync.dto;
 
 import com.ejemplo.vitsync.enums.Role;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,7 +31,13 @@ public class AuthResponse {
     /** Short-lived RS256 access token (15 min). */
     private String token;
 
-    /** Opaque revocable refresh token (7 days). Null when not applicable. */
+    /**
+     * Opaque revocable refresh token (7 days). Lo usa el controlador SOLO para
+     * fijar la cookie httpOnly; nunca se serializa en el cuerpo de la respuesta
+     * ({@code @JsonIgnore}) para que JavaScript no pueda leerlo (única vía segura
+     * = cookie httpOnly).
+     */
+    @JsonIgnore
     private String refreshToken;
 
     private String nif;

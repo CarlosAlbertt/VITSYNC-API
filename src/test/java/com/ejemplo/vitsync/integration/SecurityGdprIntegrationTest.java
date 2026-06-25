@@ -104,40 +104,49 @@ class SecurityGdprIntegrationTest {
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
+    /** Logs in and returns the httpOnly refresh cookie (única vía de refresh/logout). */
+    private jakarta.servlet.http.Cookie loginCookie(String nif, String ip) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .header("X-Forwarded-For", ip)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("nif", nif, "password", PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return result.getResponse().getCookie("refresh_token");
+    }
+
     // ---- Refresh + rotación ----
 
     @Test
-    @DisplayName("POST /refresh con token válido → 200 y nuevo par de tokens")
+    @DisplayName("POST /refresh con cookie → 200, access token en body pero refreshToken NUNCA en body")
     void refresh_validToken_returnsNewPair() throws Exception {
-        JsonNode auth = login("11111111H", "10.1.0.1");
+        jakarta.servlet.http.Cookie cookie = loginCookie("11111111H", "10.1.0.1");
 
         mockMvc.perform(post("/api/auth/refresh")
                         .header("X-Forwarded-For", "10.1.0.1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                Map.of("refreshToken", auth.get("refreshToken").asText()))))
+                        .cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+                // El refresh token ya NO se filtra en el cuerpo (solo cookie httpOnly)
+                .andExpect(jsonPath("$.refreshToken").doesNotExist());
     }
 
     @Test
-    @DisplayName("POST /refresh reutilizando token rotado (replay) → 400")
+    @DisplayName("POST /refresh reutilizando cookie rotada (replay) → 400")
     void refresh_replayedToken_isRejected() throws Exception {
-        JsonNode auth = login("11111111H", "10.1.0.2");
-        String original = auth.get("refreshToken").asText();
-        String body = objectMapper.writeValueAsString(Map.of("refreshToken", original));
+        jakarta.servlet.http.Cookie cookie = loginCookie("11111111H", "10.1.0.2");
 
-        // Primera rotación: OK
+        // Primera rotación: OK (la cookie presentada queda revocada)
         mockMvc.perform(post("/api/auth/refresh")
                         .header("X-Forwarded-For", "10.1.0.2")
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                        .cookie(cookie))
                 .andExpect(status().isOk());
 
-        // Replay del token ya revocado: rechazado sin detalle del motivo
+        // Replay de la MISMA cookie ya revocada: rechazado sin detalle del motivo
         mockMvc.perform(post("/api/auth/refresh")
                         .header("X-Forwarded-For", "10.1.0.2")
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                        .cookie(cookie))
                 .andExpect(status().isBadRequest());
     }
 
@@ -191,18 +200,17 @@ class SecurityGdprIntegrationTest {
     @Test
     @DisplayName("POST /logout revoca el refresh token: el refresh posterior falla")
     void logout_revokesRefreshToken() throws Exception {
-        JsonNode auth = login("11111111H", "10.1.0.3");
-        String body = objectMapper.writeValueAsString(
-                Map.of("refreshToken", auth.get("refreshToken").asText()));
+        jakarta.servlet.http.Cookie cookie = loginCookie("11111111H", "10.1.0.3");
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("X-Forwarded-For", "10.1.0.3")
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                        .cookie(cookie))
                 .andExpect(status().isOk());
 
+        // Tras el logout, la cookie está revocada → refresh con ella falla
         mockMvc.perform(post("/api/auth/refresh")
                         .header("X-Forwarded-For", "10.1.0.3")
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                        .cookie(cookie))
                 .andExpect(status().isBadRequest());
     }
 
