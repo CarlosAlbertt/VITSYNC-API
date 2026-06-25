@@ -91,6 +91,11 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/especialidades/**").authenticated()
                         .requestMatchers("/api/especialidades/**").hasRole("ADMIN")
 
+                        // ===== ENFERMEDADES ===== (catálogo público; CRUD y /admin solo ADMIN)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/enfermedades/admin").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/enfermedades", "/api/enfermedades/**").permitAll()
+                        .requestMatchers("/api/enfermedades/**").hasRole("ADMIN")
+
                         // ===== CITAS ===== (crear cita exige autenticación: V11,
                         // evita spam de citas y envío de emails sin identificar)
                         .requestMatchers("/api/citas/**").authenticated()
