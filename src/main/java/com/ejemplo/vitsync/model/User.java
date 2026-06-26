@@ -78,7 +78,10 @@ public class User {
     @Column(name = "verification_code")
     private String verificationCode;
 
+    // @JsonProperty para que la clave JSON sea "isVerified" (el getter booleano
+    // isVerified() se serializaría como "verified", que el front no lee).
     @Column(name = "is_verified", nullable = false)
+    @JsonProperty("isVerified")
     private boolean isVerified = false;
 
     @Column(name = "two_factor_enabled")
