@@ -3,6 +3,7 @@ package com.ejemplo.vitsync.dto;
 import com.ejemplo.vitsync.enums.Gender;
 import com.ejemplo.vitsync.enums.Role;
 import com.ejemplo.vitsync.model.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,6 +31,9 @@ public class UserResponse {
     private String address;
     private String postCode;
     private String country;
+    // Sin esto, el getter isVerified() se serializa como "verified" y el front
+    // (que lee isVerified) nunca veía el estado real de verificación.
+    @JsonProperty("isVerified")
     private boolean isVerified;
 
     // Método factory para convertir entidad a DTO (sin exponer password)

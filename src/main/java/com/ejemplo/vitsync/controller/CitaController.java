@@ -113,7 +113,32 @@ public class CitaController {
                 cita.setPaciente(paciente);
             }
 
-            Cita savedCita = citaService.saveCita(cita);
+            // No permitir reservar en el pasado (p. ej. hoy a una hora ya vencida).
+            // "Ahora" en hora local de España, no UTC.
+            if (cita.getFechaHora() != null && cita.getFechaHora().isBefore(
+                    LocalDateTime.now(java.time.ZoneId.of("Europe/Madrid")))) {
+                return ResponseEntity.badRequest().body(java.util.Map.of(
+                        "message", "No puedes reservar una cita en una fecha u hora ya pasada."));
+            }
+
+            // Control de concurrencia (chequeo previo): si ese médico ya tiene una
+            // cita activa a esa hora, no se permite duplicar.
+            if (cita.getMedico() != null && cita.getFechaHora() != null
+                    && citaService.isSlotTaken(cita.getMedico().getId(), cita.getFechaHora())) {
+                return ResponseEntity.status(409).body(java.util.Map.of(
+                        "message", "La hora seleccionada ya no está disponible. Por favor, elige otra."));
+            }
+
+            Cita savedCita;
+            try {
+                savedCita = citaService.saveCita(cita);
+            } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+                // Carrera: otra petición reservó el mismo hueco un instante antes
+                // (lo bloquea el índice único parcial). Mensaje claro al cliente.
+                logger.info("Colisión de reserva (hueco ya ocupado): {}", dup.getMessage());
+                return ResponseEntity.status(409).body(java.util.Map.of(
+                        "message", "Esa hora acaba de ser reservada por otra persona. Elige otra."));
+            }
 
             // Email de confirmación (best-effort) al correo REAL del paciente
             try {
